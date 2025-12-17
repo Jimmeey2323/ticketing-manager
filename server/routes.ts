@@ -91,7 +91,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/studios', async (req, res) => {
+  app.get('/api/studios', isAuthenticated, async (req, res) => {
     try {
       const studios = await storage.getStudios();
       res.json(studios);
@@ -145,7 +145,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/categories', async (req, res) => {
+  app.get('/api/categories', isAuthenticated, async (req, res) => {
     try {
       if (!supabase) return res.status(500).json({ message: 'Supabase not configured' });
       
@@ -182,7 +182,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/subcategories', async (req, res) => {
+  app.get('/api/subcategories', isAuthenticated, async (req, res) => {
     try {
       if (!supabase) return res.status(500).json({ message: 'Supabase not configured' });
       
@@ -585,7 +585,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get all categories with their subcategories
-  app.get('/api/categories', async (req, res) => {
+  app.get('/api/categories', isAuthenticated, async (req, res) => {
     try {
       if (!supabase) {
         return res.status(500).json({ message: 'Supabase client not initialized' });
@@ -605,7 +605,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get subcategories for a specific category (accepts category name or ID)
-  app.get('/api/categories/:categoryId/subcategories', async (req, res) => {
+  app.get('/api/categories/:categoryId/subcategories', isAuthenticated, async (req, res) => {
     try {
       const { categoryId } = req.params;
 
@@ -646,7 +646,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get dynamic fields for a category and subcategory (accepts category name or ID)
-  app.get('/api/categories/:categoryId/fields', async (req, res) => {
+  app.get('/api/categories/:categoryId/fields', isAuthenticated, async (req, res) => {
     try {
       const { categoryId } = req.params;
       const { subcategoryId } = req.query;
@@ -718,7 +718,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Fallback: Get all fields mapping (for compatibility)
-  app.get('/api/field-mapping', async (req, res) => {
+  app.get('/api/field-mapping', isAuthenticated, async (req, res) => {
     try {
       if (!supabase) {
         return res.status(500).json({ message: 'Supabase client not initialized' });
@@ -889,7 +889,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Add sample fields for testing (temporary endpoint)
-  app.post('/api/admin/add-sample-fields', async (req, res) => {
+  app.post('/api/admin/add-sample-fields', isAuthenticated, async (req, res) => {
     try {
       if (!supabase) return res.status(500).json({ message: 'Supabase not configured' });
 
@@ -958,7 +958,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Migrate CSV fields to database (Run once)
-  app.post('/api/admin/migrate-fields', async (req, res) => {
+  app.post('/api/admin/migrate-fields', isAuthenticated, async (req, res) => {
     try {
       // Ensure field types exist
       const fieldTypes = [
