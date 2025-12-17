@@ -427,30 +427,15 @@ export default function Landing() {
                   />
                 )}
                 <h1 className={`relative text-5xl font-black tracking-tighter sm:text-6xl md:text-8xl leading-tight ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                  <motion.span
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.6, delay: 0.3, type: 'spring', stiffness: 80 }}
-                    className="block bg-gradient-to-r from-blue-600 via-purple-600 to-blue-600 bg-clip-text text-transparent"
-                  >
+                  <span className="block bg-gradient-to-r from-blue-600 via-purple-600 to-blue-600 bg-clip-text text-transparent">
                     Enterprise
-                  </motion.span>
-                  <motion.span
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.6, delay: 0.5, type: 'spring', stiffness: 80 }}
-                    className="block"
-                  >
+                  </span>
+                  <span className="block">
                     Ticket & Support
-                  </motion.span>
-                  <motion.span
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.6, delay: 0.7, type: 'spring', stiffness: 80 }}
-                    className="block"
-                  >
+                  </span>
+                  <span className="block">
                     Management Platform
-                  </motion.span>
+                  </span>
                 </h1>
               </div>
             </motion.div>
