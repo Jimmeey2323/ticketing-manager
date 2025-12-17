@@ -47,6 +47,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { PriorityBadge } from "@/components/priority-badge";
 import { StatusBadge } from "@/components/status-badge";
+import { AssignAssociateModal } from "@/components/assign-associate-modal";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { queryClient } from "@/lib/queryClient";
@@ -102,8 +103,10 @@ export default function TicketDetail() {
     },
   });
 
-  // Check if current user is the assigned owner
+  // Check if current user is the assigned owner or ticket reporter
   const isTicketOwner = user?.id && ticket?.assignedToUserId === user.id;
+  const isTicketReporter = user?.id && ticket?.reportedByUserId === user.id;
+  const canAssignAssociate = isTicketOwner || isTicketReporter || user?.role === 'admin' || user?.role === 'manager';
   const canCloseTicket = isTicketOwner || user?.role === 'admin' || user?.role === 'manager';
 
   // Close ticket mutation
@@ -264,6 +267,12 @@ export default function TicketDetail() {
           </h1>
         </div>
         <div className="flex items-center gap-2">
+          {canAssignAssociate && (
+            <AssignAssociateModal
+              ticketId={ticketId!}
+              currentAssigneeId={ticket.assignedToUserId}
+            />
+          )}
           <Button variant="outline" size="sm" data-testid="button-edit-ticket">
             <Edit2 className="h-4 w-4 mr-2" />
             Edit
