@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence, useMotionTemplate, useMotionValue, animate } from "framer-motion";
 import { useTheme } from "@/components/theme-provider";
+import logoOptimized from "@/assets/logo-optimized.webp";
 
 const COLORS_TOP = ['#3b82f6', '#8b5cf6', '#ec4899', '#06b6d4'];
 const COLORS_TOP_LIGHT = ['#2563eb', '#7c3aed', '#db2777', '#0891b2'];
@@ -163,7 +164,7 @@ export default function Landing() {
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.5 }}
           >
-            <img src="/logo.png" alt="Physique 57 India" className="h-9 w-auto" />
+            <img src={logoOptimized} alt="Physique 57 India" width={36} height={36} className="h-9 w-auto" />
             <span className="font-bold hidden sm:inline text-foreground tracking-tight">Support Hub</span>
           </motion.div>
           <motion.div 
@@ -783,7 +784,7 @@ export default function Landing() {
               viewport={{ once: true }}
             >
               <div className="flex items-center gap-2">
-                <img src="/logo.png" alt="Physique 57 India" className="h-7 w-auto" />
+                <img src={logoOptimized} alt="Physique 57 India" width={28} height={28} className="h-7 w-auto" />
                 <span className={`text-sm ${isDark ? 'text-muted-foreground' : 'text-gray-600'}`}>
                   Physique 57 India - Smart Ticket Management
                 </span>
