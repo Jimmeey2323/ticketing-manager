@@ -47,7 +47,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/teams', async (req, res) => {
+  app.get('/api/teams', isAuthenticated, async (req, res) => {
     try {
       // Return empty array for now since database is not connected
       res.json([]);
@@ -203,7 +203,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/tickets', async (req, res) => {
+  app.get('/api/tickets', isAuthenticated, async (req, res) => {
     try {
       if (!supabase) return res.status(500).json({ message: 'Supabase not configured' });
       
@@ -238,7 +238,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/tickets/:id', async (req, res) => {
+  app.get('/api/tickets/:id', isAuthenticated, async (req, res) => {
     try {
       // Prefer Supabase (consistent with list endpoint), fall back to storage if needed
       if (supabase) {
@@ -398,7 +398,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/tickets/:id/comments', async (req, res) => {
+  app.get('/api/tickets/:id/comments', isAuthenticated, async (req, res) => {
     try {
       const comments = await storage.getTicketComments(req.params.id);
       res.json(comments);
@@ -424,7 +424,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/tickets/:id/attachments', async (req, res) => {
+  app.get('/api/tickets/:id/attachments', isAuthenticated, async (req, res) => {
     try {
       const attachments = await storage.getTicketAttachments(req.params.id);
       res.json(attachments);
@@ -434,7 +434,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/tickets/:id/history', async (req, res) => {
+  app.get('/api/tickets/:id/history', isAuthenticated, async (req, res) => {
     try {
       const history = await storage.getTicketHistory(req.params.id);
       res.json(history);
@@ -479,7 +479,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/dashboard/stats', async (req, res) => {
+  app.get('/api/dashboard/stats', isAuthenticated, async (req, res) => {
     try {
       const stats = await storage.getDashboardStats();
       res.json(stats);
@@ -499,7 +499,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/analytics', async (req, res) => {
+  app.get('/api/analytics', isAuthenticated, async (req, res) => {
     try {
       const analytics = await storage.getAnalyticsData();
       res.json(analytics);
@@ -518,7 +518,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Proxy endpoints for Momence to avoid exposing API token in the browser and bypass CORS
-  app.get('/api/momence/search', async (req, res) => {
+  app.get('/api/momence/search', isAuthenticated, async (req, res) => {
     try {
       const q = String(req.query.q || '').trim();
       if (!q) return res.json({ payload: [] });
@@ -551,7 +551,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/momence/members/:id', async (req, res) => {
+  app.get('/api/momence/members/:id', isAuthenticated, async (req, res) => {
     try {
       const id = String(req.params.id || '').trim();
       if (!id) return res.status(400).json({ message: 'Missing member id' });
@@ -781,7 +781,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Momence Sessions endpoints
-  app.get('/api/momence/sessions', async (req, res) => {
+  app.get('/api/momence/sessions', isAuthenticated, async (req, res) => {
     try {
       const locationId = req.query.locationId ? String(req.query.locationId).trim() : undefined;
       const page = req.query.page ? parseInt(String(req.query.page)) : 0;
@@ -826,7 +826,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/momence/sessions/:id', async (req, res) => {
+  app.get('/api/momence/sessions/:id', isAuthenticated, async (req, res) => {
     try {
       const id = String(req.params.id || '').trim();
       if (!id) return res.status(400).json({ message: 'Missing session id' });
@@ -860,7 +860,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Sentiment Analysis endpoint
-  app.post('/api/analyze-sentiment', async (req, res) => {
+  app.post('/api/analyze-sentiment', isAuthenticated, async (req, res) => {
     try {
       const { title, description, clientMood } = req.body;
 
