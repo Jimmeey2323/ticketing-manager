@@ -186,7 +186,7 @@ export function MomenceSessionSelector({ onSessionSelect, selectedSession }: Mom
           <ChevronDown className="h-4 w-4" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-[400px] p-0" align="start">
+      <PopoverContent className="w-[400px] p-0 bg-popover border border-border shadow-lg z-50" align="start">
         <div className="p-3 border-b">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />

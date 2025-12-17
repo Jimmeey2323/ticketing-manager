@@ -1531,7 +1531,9 @@ export default function NewTicket() {
                                 </FormControl>
                                 <SelectContent className="bg-popover border border-border z-50 max-h-60">
                                   {TRAINERS.map((trainer) => (
-                                    <SelectItem key={trainer} value={trainer}>{trainer}</SelectItem>
+                                    <SelectItem key={trainer.id} value={trainer.name}>
+                                      {trainer.name}
+                                    </SelectItem>
                                   ))}
                                 </SelectContent>
                               </Select>
