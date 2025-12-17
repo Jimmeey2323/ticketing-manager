@@ -523,8 +523,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const q = String(req.query.q || '').trim();
       if (!q) return res.json({ payload: [] });
 
-      const baseURL = process.env.MOMENCE_API_BASE_URL || process.env.VITE_MOMENCE_API_BASE_URL || 'https://api.momence.com/api/v2';
-      const token = process.env.MOMENCE_AUTH_TOKEN || process.env.VITE_MOMENCE_AUTH_TOKEN || '';
+      const baseURL = process.env.MOMENCE_API_BASE_URL || 'https://api.momence.com/api/v2';
+      const token = process.env.MOMENCE_AUTH_TOKEN || '';
 
       const url = `${baseURL}/host/members?page=0&pageSize=100&sortOrder=ASC&sortBy=firstName&query=${encodeURIComponent(q)}`;
 
@@ -556,8 +556,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const id = String(req.params.id || '').trim();
       if (!id) return res.status(400).json({ message: 'Missing member id' });
 
-      const baseURL = process.env.MOMENCE_API_BASE_URL || process.env.VITE_MOMENCE_API_BASE_URL || 'https://api.momence.com/api/v2';
-      const token = process.env.MOMENCE_AUTH_TOKEN || process.env.VITE_MOMENCE_AUTH_TOKEN || '';
+      const baseURL = process.env.MOMENCE_API_BASE_URL || 'https://api.momence.com/api/v2';
+      const token = process.env.MOMENCE_AUTH_TOKEN || '';
 
       const url = `${baseURL}/host/members/${encodeURIComponent(id)}`;
 
@@ -787,8 +787,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const page = req.query.page ? parseInt(String(req.query.page)) : 0;
       const pageSize = req.query.pageSize ? parseInt(String(req.query.pageSize)) : 200;
 
-      const baseURL = process.env.MOMENCE_API_BASE_URL || process.env.VITE_MOMENCE_API_BASE_URL || 'https://api.momence.com/api/v2';
-      const token = process.env.MOMENCE_AUTH_TOKEN || process.env.VITE_MOMENCE_AUTH_TOKEN || '';
+      const baseURL = process.env.MOMENCE_API_BASE_URL || 'https://api.momence.com/api/v2';
+      const token = process.env.MOMENCE_AUTH_TOKEN || '';
 
       // Build URL with optional locationId
       let url = `${baseURL}/host/sessions?page=${page}&pageSize=${pageSize}&sortOrder=DESC&sortBy=startsAt&includeCancelled=false`;
@@ -831,8 +831,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const id = String(req.params.id || '').trim();
       if (!id) return res.status(400).json({ message: 'Missing session id' });
 
-      const baseURL = process.env.MOMENCE_API_BASE_URL || process.env.VITE_MOMENCE_API_BASE_URL || 'https://api.momence.com/api/v2';
-      const token = process.env.MOMENCE_AUTH_TOKEN || process.env.VITE_MOMENCE_AUTH_TOKEN || '';
+      const baseURL = process.env.MOMENCE_API_BASE_URL || 'https://api.momence.com/api/v2';
+      const token = process.env.MOMENCE_AUTH_TOKEN || '';
 
       const url = `${baseURL}/host/sessions/${encodeURIComponent(id)}`;
 
