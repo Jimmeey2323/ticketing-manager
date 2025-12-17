@@ -28,6 +28,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useAuth } from "@/hooks/useAuth";
+import logoOptimized from "@/assets/logo-optimized.webp";
 import { cn } from "@/lib/utils";
 
 const mainNavItems = [
@@ -65,8 +66,10 @@ export function AppSidebar() {
           <div className="relative">
             <div className="flex h-11 w-11 items-center justify-center">
               <img 
-                src="/logo.png" 
+                src={logoOptimized} 
                 alt="Physique 57" 
+                width={44}
+                height={44}
                 className="h-11 w-11 object-contain"
               />
             </div>
