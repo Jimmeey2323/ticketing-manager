@@ -128,11 +128,13 @@ serve(async (req) => {
         break;
 
       case "getSessions":
-        const tomorrow = new Date();
-        tomorrow.setDate(tomorrow.getDate() + 1);
-        const startsBefore = tomorrow.toISOString();
-        url = `${MOMENCE_BASE_URL}/host/sessions?page=${page}&pageSize=${pageSize}&sortOrder=DESC&sortBy=startsAt&includeCancelled=false&startsBefore=${encodeURIComponent(startsBefore)}`;
-        console.log("Getting all sessions");
+        // Get sessions from the past 30 days to 30 days in the future
+        const thirtyDaysAgo = new Date();
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+        const thirtyDaysFromNow = new Date();
+        thirtyDaysFromNow.setDate(thirtyDaysFromNow.getDate() + 30);
+        url = `${MOMENCE_BASE_URL}/host/sessions?page=${page}&pageSize=${pageSize}&sortOrder=DESC&sortBy=startsAt&includeCancelled=false&startsAfter=${encodeURIComponent(thirtyDaysAgo.toISOString())}&startsBefore=${encodeURIComponent(thirtyDaysFromNow.toISOString())}`;
+        console.log("Getting sessions from", thirtyDaysAgo.toISOString(), "to", thirtyDaysFromNow.toISOString());
         response = await fetch(url, { headers });
         break;
 

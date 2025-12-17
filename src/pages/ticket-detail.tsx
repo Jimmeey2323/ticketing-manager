@@ -49,7 +49,7 @@ import { PriorityBadge } from "@/components/priority-badge";
 import { StatusBadge } from "@/components/status-badge";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
-import { apiRequest, queryClient } from "@/lib/queryClient";
+import { queryClient } from "@/lib/queryClient";
 import { supabase } from "@/integrations/supabase/client";
 import { STATUSES, PRIORITIES, STUDIOS, DEPARTMENTS } from "@/lib/constants";
 import type {
@@ -80,8 +80,26 @@ export default function TicketDetail() {
   const [isClosingTicket, setIsClosingTicket] = useState(false);
 
   const { data: ticket, isLoading } = useQuery<TicketWithRelations>({
-    queryKey: ["/api/tickets", ticketId],
+    queryKey: ['ticket-detail', ticketId],
     enabled: !!ticketId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('tickets')
+        .select(`
+          *,
+          category:categories(id, name, code, icon, color),
+          subcategory:subcategories(id, name, code),
+          studio:studios(id, name, code),
+          assignedTo:users!tickets_assignedToUserId_fkey(id, firstName, lastName, displayName, email),
+          reportedBy:users!tickets_reportedByUserId_fkey(id, firstName, lastName, displayName),
+          comments:ticketComments(*, user:users!ticketComments_userId_fkey(id, firstName, lastName, displayName)),
+          history:ticketHistory(*)
+        `)
+        .eq('id', ticketId)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
   });
 
   // Check if current user is the assigned owner
@@ -104,7 +122,7 @@ export default function TicketDetail() {
     },
     onSuccess: () => {
       toast({ title: "Ticket closed successfully" });
-      queryClient.invalidateQueries({ queryKey: ["/api/tickets", ticketId] });
+      queryClient.invalidateQueries({ queryKey: ['ticket-detail', ticketId] });
       setResolutionSummary("");
     },
     onError: () => {
@@ -124,11 +142,15 @@ export default function TicketDetail() {
 
   const updateStatusMutation = useMutation({
     mutationFn: async (status: string) => {
-      return apiRequest("PATCH", `/api/tickets/${ticketId}`, { status });
+      const { error } = await supabase
+        .from('tickets')
+        .update({ status, updatedAt: new Date().toISOString() })
+        .eq('id', ticketId);
+      if (error) throw error;
     },
     onSuccess: () => {
       toast({ title: "Status updated" });
-      queryClient.invalidateQueries({ queryKey: ["/api/tickets", ticketId] });
+      queryClient.invalidateQueries({ queryKey: ['ticket-detail', ticketId] });
     },
     onError: () => {
       toast({ title: "Failed to update status", variant: "destructive" });
@@ -137,11 +159,15 @@ export default function TicketDetail() {
 
   const updatePriorityMutation = useMutation({
     mutationFn: async (priority: string) => {
-      return apiRequest("PATCH", `/api/tickets/${ticketId}`, { priority });
+      const { error } = await supabase
+        .from('tickets')
+        .update({ priority, updatedAt: new Date().toISOString() })
+        .eq('id', ticketId);
+      if (error) throw error;
     },
     onSuccess: () => {
       toast({ title: "Priority updated" });
-      queryClient.invalidateQueries({ queryKey: ["/api/tickets", ticketId] });
+      queryClient.invalidateQueries({ queryKey: ['ticket-detail', ticketId] });
     },
     onError: () => {
       toast({ title: "Failed to update priority", variant: "destructive" });
@@ -150,13 +176,22 @@ export default function TicketDetail() {
 
   const addCommentMutation = useMutation({
     mutationFn: async (data: { content: string; isInternal: boolean }) => {
-      return apiRequest("POST", `/api/tickets/${ticketId}/comments`, data);
+      if (!user?.id) throw new Error("User not authenticated");
+      const { error } = await supabase
+        .from('ticketComments')
+        .insert({
+          ticketId,
+          userId: user.id,
+          content: data.content,
+          isInternal: data.isInternal,
+        });
+      if (error) throw error;
     },
     onSuccess: () => {
       toast({ title: "Comment added" });
       setNewComment("");
       setIsInternalNote(false);
-      queryClient.invalidateQueries({ queryKey: ["/api/tickets", ticketId] });
+      queryClient.invalidateQueries({ queryKey: ['ticket-detail', ticketId] });
     },
     onError: () => {
       toast({ title: "Failed to add comment", variant: "destructive" });
