@@ -10,37 +10,50 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { useAuth } from "@/hooks/useAuth";
 import { Menu, LogOut, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { lazy, Suspense } from "react";
 
-import NotFound from "@/pages/not-found";
-import Landing from "@/pages/landing";
-import Dashboard from "@/pages/dashboard";
-import Tickets from "@/pages/tickets";
-import NewTicket from "@/pages/ticket-new";
-import TicketDetail from "@/pages/ticket-detail";
-import Analytics from "@/pages/analytics";
-import Teams from "@/pages/teams";
-import Studios from "@/pages/studios";
-import Categories from "@/pages/categories";
-import Notifications from "@/pages/notifications";
-import Settings from "@/pages/settings";
-import Templates from "@/pages/templates";
+// Lazy load page components for code splitting
+const NotFound = lazy(() => import("@/pages/not-found"));
+const Landing = lazy(() => import("@/pages/landing"));
+const Dashboard = lazy(() => import("@/pages/dashboard"));
+const Tickets = lazy(() => import("@/pages/tickets"));
+const NewTicket = lazy(() => import("@/pages/ticket-new"));
+const TicketDetail = lazy(() => import("@/pages/ticket-detail"));
+const Analytics = lazy(() => import("@/pages/analytics"));
+const Teams = lazy(() => import("@/pages/teams"));
+const Studios = lazy(() => import("@/pages/studios"));
+const Categories = lazy(() => import("@/pages/categories"));
+const Notifications = lazy(() => import("@/pages/notifications"));
+const Settings = lazy(() => import("@/pages/settings"));
+const Templates = lazy(() => import("@/pages/templates"));
+
+// Loading fallback component
+function PageLoader() {
+  return (
+    <div className="flex h-64 items-center justify-center">
+      <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary/20 border-t-primary" />
+    </div>
+  );
+}
 
 function AuthenticatedRoutes() {
   return (
-    <Switch>
-      <Route path="/" component={Dashboard} />
-      <Route path="/tickets" component={Tickets} />
-      <Route path="/tickets/new" component={NewTicket} />
-      <Route path="/tickets/:id" component={TicketDetail} />
-      <Route path="/analytics" component={Analytics} />
-      <Route path="/templates" component={Templates} />
-      <Route path="/teams" component={Teams} />
-      <Route path="/studios" component={Studios} />
-      <Route path="/categories" component={Categories} />
-      <Route path="/notifications" component={Notifications} />
-      <Route path="/settings" component={Settings} />
-      <Route component={NotFound} />
-    </Switch>
+    <Suspense fallback={<PageLoader />}>
+      <Switch>
+        <Route path="/" component={Dashboard} />
+        <Route path="/tickets" component={Tickets} />
+        <Route path="/tickets/new" component={NewTicket} />
+        <Route path="/tickets/:id" component={TicketDetail} />
+        <Route path="/analytics" component={Analytics} />
+        <Route path="/templates" component={Templates} />
+        <Route path="/teams" component={Teams} />
+        <Route path="/studios" component={Studios} />
+        <Route path="/categories" component={Categories} />
+        <Route path="/notifications" component={Notifications} />
+        <Route path="/settings" component={Settings} />
+        <Route component={NotFound} />
+      </Switch>
+    </Suspense>
   );
 }
 
@@ -65,7 +78,11 @@ function AppLayout() {
   }
 
   if (!user) {
-    return <Landing />;
+    return (
+      <Suspense fallback={<PageLoader />}>
+        <Landing />
+      </Suspense>
+    );
   }
 
   const style = {
