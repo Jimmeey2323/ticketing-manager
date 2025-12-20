@@ -8,7 +8,7 @@ const corsHeaders = {
 };
 
 interface MomenceRequest {
-  action: "searchMembers" | "getMemberSessions" | "getMemberMemberships" | "getSessions" | "getSessionDetails" | "getMemberDetails";
+  action: "searchMembers" | "getMemberSessions" | "getMemberMemberships" | "getSessions" | "getSessionDetails" | "getMemberDetails" | "getSessionBookings";
   query?: string;
   memberId?: number;
   sessionId?: number;
@@ -139,6 +139,13 @@ serve(async (req) => {
         if (!sessionId) throw new Error("sessionId is required");
         url = `${MOMENCE_BASE_URL}/host/sessions/${sessionId}`;
         console.log("Getting session details:", sessionId);
+        response = await fetch(url, { headers });
+        break;
+
+      case "getSessionBookings":
+        if (!sessionId) throw new Error("sessionId is required");
+        url = `${MOMENCE_BASE_URL}/host/sessions/${sessionId}/bookings?page=${page}&pageSize=${pageSize}&sortOrder=DESC&sortBy=firstName&includeCancelled=true`;
+        console.log("Getting session bookings:", sessionId);
         response = await fetch(url, { headers });
         break;
 

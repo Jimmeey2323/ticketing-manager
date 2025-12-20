@@ -14,15 +14,10 @@ import {
   Star,
   Lightbulb,
   Target,
-  TrendingUp,
-  Wand2,
-  FileText,
   ArrowRight,
-  Building2,
   Calendar,
-  Phone,
-  Mail,
-  UserCircle,
+  Users,
+  ChevronDown,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -34,7 +29,24 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { cn } from "@/lib/utils";
-import { CATEGORIES, STUDIOS, TRAINERS, PRIORITIES } from "@/lib/constants";
+import { CATEGORIES, STUDIOS, TRAINERS } from "@/lib/constants";
+import { ClassSelector, ClassSession } from "@/components/class-selector";
+import { MomenceClientSearch } from "@/components/momence-client-search";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+
+interface MomenceMember {
+  id: number;
+  firstName: string;
+  lastName: string;
+  email: string;
+  phoneNumber: string;
+  pictureUrl?: string;
+}
 
 interface Message {
   id: string;
@@ -50,15 +62,18 @@ interface Message {
   };
   currentQuestion?: ConversationQuestion;
   collectedData?: Partial<TicketData>;
+  showClassSelector?: boolean;
+  showMemberSelector?: boolean;
 }
 
 interface ConversationQuestion {
   id: string;
   question: string;
-  type: "single-select" | "multi-select" | "text" | "confirm";
+  type: "single-select" | "multi-select" | "text" | "confirm" | "class-select" | "member-select" | "multi-input";
   options?: { value: string; label: string; icon?: any; description?: string }[];
   field: keyof TicketData;
   required?: boolean;
+  multiFields?: { field: keyof TicketData; label: string; placeholder: string }[];
 }
 
 interface TicketData {
@@ -74,8 +89,12 @@ interface TicketData {
   trainerName: string;
   className: string;
   classDate: string;
+  classId: string;
   feedbackType: string;
   sentiment: string;
+  memberId: string;
+  classDetails: ClassSession | null;
+  memberDetails: MomenceMember | null;
 }
 
 interface AIFeedbackChatbotProps {
@@ -112,6 +131,20 @@ const CONVERSATION_FLOW: ConversationQuestion[] = [
     })),
   },
   {
+    id: "class",
+    question: "Select the class this is about (if applicable):",
+    type: "class-select",
+    field: "classDetails",
+    required: false,
+  },
+  {
+    id: "member",
+    question: "Search and select the member involved:",
+    type: "member-select",
+    field: "memberDetails",
+    required: false,
+  },
+  {
     id: "studio",
     question: "Which studio location is this about?",
     type: "single-select",
@@ -144,27 +177,13 @@ const CONVERSATION_FLOW: ConversationQuestion[] = [
     required: true,
   },
   {
-    id: "customerName",
-    question: "What is the customer's name? (if applicable)",
-    type: "text",
-    field: "customerName",
-    required: false,
-  },
-  {
-    id: "customerEmail",
-    question: "Customer's email for follow-up? (optional)",
-    type: "text",
-    field: "customerEmail",
-    required: false,
-  },
-  {
     id: "confirm",
     question: "Ready to create this ticket?",
     type: "confirm",
     field: "title",
     options: [
       { value: "yes", label: "Create Ticket", description: "Submit now" },
-      { value: "edit", label: "Edit Details", description: "Make changes" },
+      { value: "edit", label: "Start Over", description: "Make changes" },
     ],
   },
 ];
@@ -182,12 +201,6 @@ const TRAINER_QUESTIONS: ConversationQuestion[] = [
       description: t.specialization,
     })),
   },
-  {
-    id: "className",
-    question: "Which class was this? (optional)",
-    type: "text",
-    field: "className",
-  },
 ];
 
 export function AIFeedbackChatbot({ onClose, onAutoFill, className }: AIFeedbackChatbotProps) {
@@ -195,6 +208,7 @@ export function AIFeedbackChatbot({ onClose, onAutoFill, className }: AIFeedback
   const { user } = useAuth();
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
@@ -203,32 +217,38 @@ export function AIFeedbackChatbot({ onClose, onAutoFill, className }: AIFeedback
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [collectedData, setCollectedData] = useState<Partial<TicketData>>({});
   const [questionFlow, setQuestionFlow] = useState<ConversationQuestion[]>([]);
-  const [conversationStarted, setConversationStarted] = useState(false);
+  
+  // Modal states for selectors
+  const [showClassModal, setShowClassModal] = useState(false);
+  const [showMemberModal, setShowMemberModal] = useState(false);
+  const [selectedClass, setSelectedClass] = useState<ClassSession | null>(null);
+  const [selectedMember, setSelectedMember] = useState<MomenceMember | null>(null);
+
+  // Auto-scroll to bottom on new messages
+  const scrollToBottom = useCallback(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, []);
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages, scrollToBottom]);
 
   // Initialize with welcome message
   useEffect(() => {
     setMessages([{
       id: "welcome",
       role: "assistant",
-      content: "👋 Hi! I'm your AI assistant. I'll help you create a ticket step by step.\n\nJust answer a few quick questions and I'll handle the rest!",
+      content: "👋 Hi! I'm your AI ticket assistant. Let's create a ticket together - just answer a few quick questions!",
       timestamp: new Date(),
       currentQuestion: CONVERSATION_FLOW[0],
     }]);
     setQuestionFlow(CONVERSATION_FLOW);
   }, []);
 
-  // Scroll to bottom on new messages
-  useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-    }
-  }, [messages]);
-
   // Build dynamic question flow based on feedback type
   const buildQuestionFlow = useCallback((feedbackType: string) => {
     let flow = [...CONVERSATION_FLOW];
     
-    // Insert trainer questions after category for trainer feedback
     if (feedbackType === "trainer-feedback") {
       const categoryIndex = flow.findIndex(q => q.id === "category");
       flow.splice(categoryIndex + 1, 0, ...TRAINER_QUESTIONS);
@@ -241,7 +261,6 @@ export function AIFeedbackChatbot({ onClose, onAutoFill, className }: AIFeedback
   const handleOptionSelect = useCallback(async (value: string, question: ConversationQuestion) => {
     if (isLoading) return;
 
-    // Add user message
     const userMessage: Message = {
       id: Date.now().toString(),
       role: "user",
@@ -250,25 +269,23 @@ export function AIFeedbackChatbot({ onClose, onAutoFill, className }: AIFeedback
     };
     setMessages(prev => [...prev, userMessage]);
 
-    // Update collected data
     const newData = { ...collectedData, [question.field]: value };
     setCollectedData(newData);
 
-    // Special handling for feedback type - update flow
     if (question.id === "feedbackType") {
       const newFlow = buildQuestionFlow(value);
       setQuestionFlow(newFlow);
     }
 
-    // Handle confirmation
     if (question.id === "confirm") {
       if (value === "yes") {
         await createTicket(newData);
         return;
       } else {
-        // Reset to start
         setCurrentQuestionIndex(0);
         setCollectedData({});
+        setSelectedClass(null);
+        setSelectedMember(null);
         setMessages([{
           id: "restart",
           role: "assistant",
@@ -280,9 +297,8 @@ export function AIFeedbackChatbot({ onClose, onAutoFill, className }: AIFeedback
       }
     }
 
-    // Move to next question
     setIsLoading(true);
-    await new Promise(r => setTimeout(r, 400)); // Small delay for UX
+    await new Promise(r => setTimeout(r, 300));
 
     const currentFlow = question.id === "feedbackType" ? buildQuestionFlow(value) : questionFlow;
     const currentIndex = currentFlow.findIndex(q => q.id === question.id);
@@ -292,27 +308,168 @@ export function AIFeedbackChatbot({ onClose, onAutoFill, className }: AIFeedback
       const nextQuestion = currentFlow[nextIndex];
       setCurrentQuestionIndex(nextIndex);
       
-      // If next is confirm, generate title first
       if (nextQuestion.id === "confirm") {
         const title = generateTitle(newData);
         newData.title = title;
         setCollectedData(newData);
       }
 
+      const summaryContent = nextQuestion.id === "confirm" 
+        ? buildSummaryMessage(newData, nextQuestion)
+        : nextQuestion.question;
+
       setMessages(prev => [...prev, {
         id: (Date.now() + 1).toString(),
         role: "assistant",
-        content: nextQuestion.id === "confirm" 
-          ? `Great! Here's what I've prepared:\n\n📋 **${newData.title || "New Ticket"}**\n🏷️ Priority: ${newData.priority || "Medium"}\n📍 Studio: ${STUDIOS.find(s => s.id === newData.studio)?.name || "Not specified"}\n\n${nextQuestion.question}`
-          : nextQuestion.question,
+        content: summaryContent,
         timestamp: new Date(),
         currentQuestion: nextQuestion,
         collectedData: newData,
+        showClassSelector: nextQuestion.type === "class-select",
+        showMemberSelector: nextQuestion.type === "member-select",
       }]);
     }
 
     setIsLoading(false);
   }, [collectedData, questionFlow, buildQuestionFlow, isLoading]);
+
+  // Build summary message for confirmation
+  const buildSummaryMessage = (data: Partial<TicketData>, question: ConversationQuestion) => {
+    const parts = ["Here's your ticket summary:\n"];
+    
+    parts.push(`📋 **${data.title || "New Ticket"}**`);
+    parts.push(`🏷️ Priority: ${data.priority || "Medium"}`);
+    parts.push(`📍 Studio: ${STUDIOS.find(s => s.id === data.studio)?.name || "Not specified"}`);
+    
+    if (data.classDetails) {
+      parts.push(`📅 Class: ${(data.classDetails as ClassSession).name}`);
+    }
+    if (data.memberDetails) {
+      const member = data.memberDetails as MomenceMember;
+      parts.push(`👤 Member: ${member.firstName} ${member.lastName}`);
+    }
+    if (data.trainerName) {
+      parts.push(`🎓 Trainer: ${data.trainerName}`);
+    }
+    
+    parts.push(`\n${question.question}`);
+    
+    return parts.join("\n");
+  };
+
+  // Handle class selection
+  const handleClassSelect = (session: ClassSession | null) => {
+    setSelectedClass(session);
+    if (session) {
+      const newData = { 
+        ...collectedData, 
+        classDetails: session,
+        className: session.name,
+        classId: session.id.toString(),
+        classDate: session.startsAt,
+      };
+      setCollectedData(newData);
+      
+      // Add user message showing selection
+      setMessages(prev => [...prev, {
+        id: Date.now().toString(),
+        role: "user",
+        content: `Selected: ${session.name} on ${new Date(session.startsAt).toLocaleDateString()}`,
+        timestamp: new Date(),
+      }]);
+      
+      setShowClassModal(false);
+      moveToNextQuestion(newData);
+    }
+  };
+
+  // Handle member selection
+  const handleMemberSelect = (member: MomenceMember | null) => {
+    setSelectedMember(member);
+    if (member) {
+      const newData = { 
+        ...collectedData, 
+        memberDetails: member,
+        customerId: member.id.toString(),
+        customerName: `${member.firstName} ${member.lastName}`,
+        customerEmail: member.email,
+        customerPhone: member.phoneNumber,
+      };
+      setCollectedData(newData);
+      
+      setMessages(prev => [...prev, {
+        id: Date.now().toString(),
+        role: "user",
+        content: `Selected: ${member.firstName} ${member.lastName}`,
+        timestamp: new Date(),
+      }]);
+      
+      setShowMemberModal(false);
+      moveToNextQuestion(newData);
+    }
+  };
+
+  // Skip selector questions
+  const handleSkipSelector = (questionId: string) => {
+    const currentIndex = questionFlow.findIndex(q => q.id === questionId);
+    if (currentIndex >= 0 && currentIndex < questionFlow.length - 1) {
+      const nextQuestion = questionFlow[currentIndex + 1];
+      setCurrentQuestionIndex(currentIndex + 1);
+      
+      setMessages(prev => [...prev, 
+        {
+          id: Date.now().toString(),
+          role: "user",
+          content: "Skipped",
+          timestamp: new Date(),
+        },
+        {
+          id: (Date.now() + 1).toString(),
+          role: "assistant",
+          content: nextQuestion.question,
+          timestamp: new Date(),
+          currentQuestion: nextQuestion,
+          showClassSelector: nextQuestion.type === "class-select",
+          showMemberSelector: nextQuestion.type === "member-select",
+        }
+      ]);
+    }
+  };
+
+  // Move to next question helper
+  const moveToNextQuestion = async (newData: Partial<TicketData>) => {
+    setIsLoading(true);
+    await new Promise(r => setTimeout(r, 300));
+    
+    const nextIndex = currentQuestionIndex + 1;
+    if (nextIndex < questionFlow.length) {
+      const nextQuestion = questionFlow[nextIndex];
+      setCurrentQuestionIndex(nextIndex);
+      
+      if (nextQuestion.id === "confirm") {
+        const title = generateTitle(newData);
+        newData.title = title;
+        setCollectedData(newData);
+      }
+
+      const summaryContent = nextQuestion.id === "confirm" 
+        ? buildSummaryMessage(newData, nextQuestion)
+        : nextQuestion.question;
+
+      setMessages(prev => [...prev, {
+        id: (Date.now() + 1).toString(),
+        role: "assistant",
+        content: summaryContent,
+        timestamp: new Date(),
+        currentQuestion: nextQuestion,
+        collectedData: newData,
+        showClassSelector: nextQuestion.type === "class-select",
+        showMemberSelector: nextQuestion.type === "member-select",
+      }]);
+    }
+    
+    setIsLoading(false);
+  };
 
   // Handle text input submission
   const handleTextSubmit = useCallback(async () => {
@@ -321,7 +478,6 @@ export function AIFeedbackChatbot({ onClose, onAutoFill, className }: AIFeedback
     const currentQuestion = questionFlow[currentQuestionIndex];
     if (!currentQuestion) return;
 
-    // Add user message
     const userMessage: Message = {
       id: Date.now().toString(),
       role: "user",
@@ -330,36 +486,37 @@ export function AIFeedbackChatbot({ onClose, onAutoFill, className }: AIFeedback
     };
     setMessages(prev => [...prev, userMessage]);
 
-    // Update collected data
     const newData = { ...collectedData, [currentQuestion.field]: input.trim() };
     setCollectedData(newData);
     setInput("");
 
-    // Move to next question
     setIsLoading(true);
-    await new Promise(r => setTimeout(r, 400));
+    await new Promise(r => setTimeout(r, 300));
 
     const nextIndex = currentQuestionIndex + 1;
     if (nextIndex < questionFlow.length) {
       const nextQuestion = questionFlow[nextIndex];
       setCurrentQuestionIndex(nextIndex);
 
-      // If next is confirm, generate title
       if (nextQuestion.id === "confirm") {
         const title = generateTitle(newData);
         newData.title = title;
         setCollectedData(newData);
       }
 
+      const summaryContent = nextQuestion.id === "confirm" 
+        ? buildSummaryMessage(newData, nextQuestion)
+        : nextQuestion.question;
+
       setMessages(prev => [...prev, {
         id: (Date.now() + 1).toString(),
         role: "assistant",
-        content: nextQuestion.id === "confirm"
-          ? `Perfect! Here's the ticket summary:\n\n📋 **${newData.title}**\n🏷️ Priority: ${newData.priority || "Medium"}\n📍 Studio: ${STUDIOS.find(s => s.id === newData.studio)?.name || "Not specified"}\n\n${nextQuestion.question}`
-          : nextQuestion.question,
+        content: summaryContent,
         timestamp: new Date(),
         currentQuestion: nextQuestion,
         collectedData: newData,
+        showClassSelector: nextQuestion.type === "class-select",
+        showMemberSelector: nextQuestion.type === "member-select",
       }]);
     }
 
@@ -380,12 +537,11 @@ export function AIFeedbackChatbot({ onClose, onAutoFill, className }: AIFeedback
     return `${category}${trainer} - ${studio}`.trim() || "New Support Ticket";
   };
 
-  // Create ticket with predefined routes
+  // Create ticket
   const createTicket = async (data: Partial<TicketData>) => {
     setIsCreatingTicket(true);
     
     try {
-      // Generate ticket number
       const now = new Date();
       const year = now.getFullYear().toString().slice(-2);
       const month = (now.getMonth() + 1).toString().padStart(2, "0");
@@ -393,10 +549,8 @@ export function AIFeedbackChatbot({ onClose, onAutoFill, className }: AIFeedback
       const random = Math.floor(Math.random() * 10000).toString().padStart(4, "0");
       const ticketNumber = `TKT-${year}${month}${day}-${random}`;
 
-      // Get category config for routing
       const categoryConfig = CATEGORIES.find(c => c.id === data.category);
       
-      // Get department based on category (predefined routes, not AI)
       const { data: departments } = await supabase
         .from("departments")
         .select("id, name")
@@ -406,7 +560,6 @@ export function AIFeedbackChatbot({ onClose, onAutoFill, className }: AIFeedback
         d.name.toLowerCase().includes(categoryConfig?.defaultTeam?.toLowerCase() || "operations")
       );
 
-      // Get studio
       const { data: studios } = await supabase
         .from("studios")
         .select("id")
@@ -415,7 +568,6 @@ export function AIFeedbackChatbot({ onClose, onAutoFill, className }: AIFeedback
 
       const studioId = studios?.id || (await supabase.from("studios").select("id").limit(1).single()).data?.id;
 
-      // Create ticket
       const { data: ticket, error } = await supabase
         .from("tickets")
         .insert([{
@@ -436,8 +588,10 @@ export function AIFeedbackChatbot({ onClose, onAutoFill, className }: AIFeedback
             trainerName: data.trainerName,
             className: data.className,
             classDate: data.classDate,
+            classId: data.classId,
             feedbackType: data.feedbackType,
             aiGenerated: true,
+            memberId: (data.memberDetails as MomenceMember)?.id,
           },
         }])
         .select()
@@ -445,7 +599,6 @@ export function AIFeedbackChatbot({ onClose, onAutoFill, className }: AIFeedback
 
       if (error) throw error;
 
-      // Success message
       const studioName = STUDIOS.find(s => s.id === data.studio)?.name || "";
       setMessages(prev => [...prev, {
         id: (Date.now() + 1).toString(),
@@ -466,9 +619,10 @@ export function AIFeedbackChatbot({ onClose, onAutoFill, className }: AIFeedback
         description: `${ticketNumber} has been created and assigned`,
       });
 
-      // Reset for new ticket
       setCurrentQuestionIndex(0);
       setCollectedData({});
+      setSelectedClass(null);
+      setSelectedMember(null);
 
     } catch (error: any) {
       console.error("Error creating ticket:", error);
@@ -489,7 +643,10 @@ export function AIFeedbackChatbot({ onClose, onAutoFill, className }: AIFeedback
     }
   };
 
-  // Render option buttons
+  // Get current question type
+  const currentQuestion = questionFlow[currentQuestionIndex];
+
+  // Render option buttons with modern styling
   const renderOptions = (question: ConversationQuestion) => {
     if (!question.options) return null;
 
@@ -497,7 +654,7 @@ export function AIFeedbackChatbot({ onClose, onAutoFill, className }: AIFeedback
       <motion.div 
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
-        className="grid gap-2 mt-3"
+        className="grid gap-2 mt-4"
       >
         {question.options.map((option, idx) => {
           const Icon = option.icon;
@@ -510,24 +667,24 @@ export function AIFeedbackChatbot({ onClose, onAutoFill, className }: AIFeedback
               onClick={() => handleOptionSelect(option.value, question)}
               disabled={isLoading || isCreatingTicket}
               className={cn(
-                "flex items-center gap-3 p-3 rounded-xl border-2 text-left transition-all",
-                "hover:border-primary hover:bg-primary/5 hover:shadow-md",
+                "flex items-center gap-3 p-4 rounded-2xl border-2 text-left transition-all group",
+                "hover:border-primary hover:bg-gradient-to-r hover:from-primary/10 hover:to-primary/5 hover:shadow-lg hover:scale-[1.02]",
                 "disabled:opacity-50 disabled:cursor-not-allowed",
-                "bg-card/50 border-border/50"
+                "bg-card/80 backdrop-blur-sm border-border/50"
               )}
             >
               {Icon && (
-                <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                  <Icon className="h-4 w-4 text-primary" />
+                <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center shrink-0 group-hover:from-primary/30 group-hover:to-primary/20 transition-colors">
+                  <Icon className="h-5 w-5 text-primary" />
                 </div>
               )}
               <div className="flex-1 min-w-0">
-                <p className="font-medium text-sm">{option.label}</p>
+                <p className="font-semibold text-sm">{option.label}</p>
                 {option.description && (
-                  <p className="text-xs text-muted-foreground truncate">{option.description}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">{option.description}</p>
                 )}
               </div>
-              <ArrowRight className="h-4 w-4 text-muted-foreground" />
+              <ArrowRight className="h-4 w-4 text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-all" />
             </motion.button>
           );
         })}
@@ -535,171 +692,300 @@ export function AIFeedbackChatbot({ onClose, onAutoFill, className }: AIFeedback
     );
   };
 
+  // Render selector buttons for class/member
+  const renderSelectorButtons = (message: Message) => {
+    if (message.showClassSelector) {
+      return (
+        <motion.div 
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mt-4 space-y-2"
+        >
+          <Button 
+            onClick={() => setShowClassModal(true)}
+            className="w-full justify-start gap-3 h-12 rounded-xl bg-gradient-to-r from-primary/10 to-primary/5 hover:from-primary/20 hover:to-primary/10 border border-primary/20"
+            variant="outline"
+          >
+            <Calendar className="h-5 w-5 text-primary" />
+            <span>Select a Class</span>
+            <ChevronDown className="h-4 w-4 ml-auto" />
+          </Button>
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            onClick={() => handleSkipSelector("class")}
+            className="w-full text-muted-foreground hover:text-foreground"
+          >
+            Skip this step
+          </Button>
+        </motion.div>
+      );
+    }
+    
+    if (message.showMemberSelector) {
+      return (
+        <motion.div 
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mt-4 space-y-2"
+        >
+          <Button 
+            onClick={() => setShowMemberModal(true)}
+            className="w-full justify-start gap-3 h-12 rounded-xl bg-gradient-to-r from-primary/10 to-primary/5 hover:from-primary/20 hover:to-primary/10 border border-primary/20"
+            variant="outline"
+          >
+            <Users className="h-5 w-5 text-primary" />
+            <span>Search & Select Member</span>
+            <ChevronDown className="h-4 w-4 ml-auto" />
+          </Button>
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            onClick={() => handleSkipSelector("member")}
+            className="w-full text-muted-foreground hover:text-foreground"
+          >
+            Skip this step
+          </Button>
+        </motion.div>
+      );
+    }
+    
+    return null;
+  };
+
   return (
-    <Card className={cn(
-      "flex flex-col h-[700px] max-h-[90vh] border-2 border-primary/20 shadow-2xl overflow-hidden",
-      "bg-gradient-to-b from-card to-card/95",
-      className
-    )}>
-      {/* Header */}
-      <CardHeader className="pb-3 border-b bg-gradient-to-r from-primary/5 via-secondary/5 to-accent/5 shrink-0">
-        <div className="flex items-center justify-between">
-          <CardTitle className="flex items-center gap-3 text-lg">
-            <motion.div 
-              animate={{ rotate: [0, 10, -10, 0] }}
-              transition={{ duration: 2, repeat: Infinity, repeatDelay: 3 }}
-              className="h-11 w-11 rounded-xl bg-gradient-to-br from-violet-500 via-purple-500 to-fuchsia-500 flex items-center justify-center shadow-lg shadow-purple-500/30"
-            >
-              <Bot className="h-5 w-5 text-white" />
-            </motion.div>
-            <div>
-              <span className="font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
-                AI Ticket Assistant
-              </span>
-              <p className="text-xs text-muted-foreground font-normal">Quick guided ticket creation</p>
-            </div>
-          </CardTitle>
-          {onClose && (
-            <Button variant="ghost" size="icon" onClick={onClose} className="rounded-xl hover:bg-destructive/10 hover:text-destructive">
-              <X className="h-4 w-4" />
-            </Button>
-          )}
-        </div>
-      </CardHeader>
-
-      {/* Messages */}
-      <ScrollArea className="flex-1 p-4" ref={scrollRef}>
-        <div className="space-y-4">
-          <AnimatePresence initial={false}>
-            {messages.map((message) => (
-              <motion.div
-                key={message.id}
-                initial={{ opacity: 0, y: 10, scale: 0.98 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: -10 }}
-                className={cn(
-                  "flex gap-3",
-                  message.role === "user" ? "justify-end" : "justify-start"
-                )}
+    <>
+      <Card className={cn(
+        "flex flex-col h-[700px] max-h-[90vh] overflow-hidden",
+        "bg-gradient-to-b from-background via-background to-muted/20",
+        "border-2 border-primary/10 shadow-2xl shadow-primary/5",
+        "rounded-3xl",
+        className
+      )}>
+        {/* Modern Header */}
+        <CardHeader className="pb-4 border-b border-border/50 bg-gradient-to-r from-primary/5 via-transparent to-secondary/5 shrink-0">
+          <div className="flex items-center justify-between">
+            <CardTitle className="flex items-center gap-4">
+              <motion.div 
+                animate={{ 
+                  boxShadow: ["0 0 20px rgba(139, 92, 246, 0.3)", "0 0 40px rgba(139, 92, 246, 0.5)", "0 0 20px rgba(139, 92, 246, 0.3)"]
+                }}
+                transition={{ duration: 2, repeat: Infinity }}
+                className="h-12 w-12 rounded-2xl bg-gradient-to-br from-violet-500 via-purple-500 to-fuchsia-500 flex items-center justify-center"
               >
-                {message.role === "assistant" && (
-                  <Avatar className="h-8 w-8 shrink-0 ring-2 ring-purple-500/20">
-                    <AvatarFallback className="bg-gradient-to-br from-violet-500 to-purple-500 text-white text-xs">
-                      <Bot className="h-4 w-4" />
-                    </AvatarFallback>
-                  </Avatar>
-                )}
-
-                <div className={cn(
-                  "max-w-[85%] rounded-2xl px-4 py-3",
-                  message.role === "user"
-                    ? "bg-gradient-to-r from-primary to-secondary text-primary-foreground shadow-lg"
-                    : "bg-muted/60 backdrop-blur-sm border border-border/50"
-                )}>
-                  <p className="text-sm whitespace-pre-wrap leading-relaxed">{message.content}</p>
-                  
-                  {/* Ticket created card */}
-                  {message.ticketCreated && (
-                    <motion.div 
-                      initial={{ scale: 0.9, opacity: 0 }}
-                      animate={{ scale: 1, opacity: 1 }}
-                      className="mt-3 p-4 bg-emerald-500/10 rounded-xl border border-emerald-500/20"
-                    >
-                      <div className="flex items-center gap-2 mb-3">
-                        <CheckCircle className="h-5 w-5 text-emerald-500" />
-                        <span className="font-semibold text-emerald-600 dark:text-emerald-400">
-                          Ticket Created
-                        </span>
-                      </div>
-                      <div className="space-y-2 text-sm">
-                        <div className="flex items-center gap-2">
-                          <Ticket className="h-4 w-4 text-muted-foreground" />
-                          <span className="font-mono font-bold text-base">{message.ticketCreated.ticketNumber}</span>
-                        </div>
-                        <div className="flex flex-wrap gap-2">
-                          <Badge variant="outline" className="text-xs">
-                            {message.ticketCreated.priority}
-                          </Badge>
-                          <Badge variant="secondary" className="text-xs">
-                            {message.ticketCreated.category}
-                          </Badge>
-                        </div>
-                        <p className="text-xs text-muted-foreground">
-                          📍 {message.ticketCreated.studio}
-                        </p>
-                      </div>
-                    </motion.div>
-                  )}
-
-                  {/* Current question options */}
-                  {message.currentQuestion && message.role === "assistant" && (
-                    renderOptions(message.currentQuestion)
-                  )}
-                </div>
-
-                {message.role === "user" && (
-                  <Avatar className="h-8 w-8 shrink-0">
-                    <AvatarFallback className="bg-primary/20 text-primary text-xs">
-                      <User className="h-4 w-4" />
-                    </AvatarFallback>
-                  </Avatar>
-                )}
+                <Sparkles className="h-6 w-6 text-white" />
               </motion.div>
-            ))}
-          </AnimatePresence>
-
-          {/* Loading indicator */}
-          {(isLoading || isCreatingTicket) && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="flex gap-3"
-            >
-              <Avatar className="h-8 w-8 shrink-0 ring-2 ring-purple-500/20">
-                <AvatarFallback className="bg-gradient-to-br from-violet-500 to-purple-500 text-white text-xs">
-                  <Bot className="h-4 w-4" />
-                </AvatarFallback>
-              </Avatar>
-              <div className="bg-muted/60 rounded-2xl px-4 py-3">
-                <div className="flex items-center gap-2">
-                  <Loader2 className="h-4 w-4 animate-spin text-primary" />
-                  <span className="text-sm text-muted-foreground">
-                    {isCreatingTicket ? "Creating ticket..." : "Thinking..."}
-                  </span>
-                </div>
+              <div>
+                <span className="font-bold text-lg bg-gradient-to-r from-violet-600 via-purple-600 to-fuchsia-600 bg-clip-text text-transparent">
+                  AI Ticket Assistant
+                </span>
+                <p className="text-xs text-muted-foreground font-normal mt-0.5">Guided ticket creation</p>
               </div>
-            </motion.div>
+            </CardTitle>
+            {onClose && (
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                onClick={onClose} 
+                className="rounded-xl h-10 w-10 hover:bg-destructive/10 hover:text-destructive transition-colors"
+              >
+                <X className="h-5 w-5" />
+              </Button>
+            )}
+          </div>
+        </CardHeader>
+
+        {/* Messages Area with better scrolling */}
+        <ScrollArea className="flex-1 p-4">
+          <div className="space-y-4 pb-4">
+            <AnimatePresence initial={false}>
+              {messages.map((message) => (
+                <motion.div
+                  key={message.id}
+                  initial={{ opacity: 0, y: 20, scale: 0.95 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  transition={{ duration: 0.2 }}
+                  className={cn(
+                    "flex gap-3",
+                    message.role === "user" ? "justify-end" : "justify-start"
+                  )}
+                >
+                  {message.role === "assistant" && (
+                    <Avatar className="h-9 w-9 shrink-0 ring-2 ring-purple-500/20 shadow-lg">
+                      <AvatarFallback className="bg-gradient-to-br from-violet-500 to-purple-600 text-white">
+                        <Bot className="h-4 w-4" />
+                      </AvatarFallback>
+                    </Avatar>
+                  )}
+
+                  <div className={cn(
+                    "max-w-[85%] rounded-2xl px-4 py-3 shadow-sm",
+                    message.role === "user"
+                      ? "bg-gradient-to-r from-primary to-primary/80 text-primary-foreground shadow-lg shadow-primary/20"
+                      : "bg-card/80 backdrop-blur-sm border border-border/50"
+                  )}>
+                    <p className="text-sm whitespace-pre-wrap leading-relaxed">{message.content}</p>
+                    
+                    {/* Ticket created card */}
+                    {message.ticketCreated && (
+                      <motion.div 
+                        initial={{ scale: 0.9, opacity: 0 }}
+                        animate={{ scale: 1, opacity: 1 }}
+                        className="mt-4 p-4 bg-emerald-500/10 rounded-xl border border-emerald-500/20"
+                      >
+                        <div className="flex items-center gap-2 mb-3">
+                          <CheckCircle className="h-5 w-5 text-emerald-500" />
+                          <span className="font-semibold text-emerald-600 dark:text-emerald-400">
+                            Ticket Created
+                          </span>
+                        </div>
+                        <div className="space-y-2 text-sm">
+                          <div className="flex items-center gap-2">
+                            <Ticket className="h-4 w-4 text-muted-foreground" />
+                            <span className="font-mono font-bold text-lg">{message.ticketCreated.ticketNumber}</span>
+                          </div>
+                          <div className="flex flex-wrap gap-2">
+                            <Badge variant="outline" className="text-xs capitalize">
+                              {message.ticketCreated.priority}
+                            </Badge>
+                            <Badge variant="secondary" className="text-xs">
+                              {message.ticketCreated.category}
+                            </Badge>
+                          </div>
+                          <p className="text-xs text-muted-foreground">
+                            📍 {message.ticketCreated.studio}
+                          </p>
+                        </div>
+                      </motion.div>
+                    )}
+
+                    {/* Render options or selector buttons */}
+                    {message.currentQuestion && message.role === "assistant" && (
+                      <>
+                        {message.currentQuestion.type === "single-select" || message.currentQuestion.type === "confirm" ? (
+                          renderOptions(message.currentQuestion)
+                        ) : null}
+                        {renderSelectorButtons(message)}
+                      </>
+                    )}
+                  </div>
+
+                  {message.role === "user" && (
+                    <Avatar className="h-9 w-9 shrink-0 shadow-sm">
+                      <AvatarFallback className="bg-primary/10 text-primary">
+                        <User className="h-4 w-4" />
+                      </AvatarFallback>
+                    </Avatar>
+                  )}
+                </motion.div>
+              ))}
+            </AnimatePresence>
+
+            {/* Loading indicator */}
+            {(isLoading || isCreatingTicket) && (
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="flex gap-3"
+              >
+                <Avatar className="h-9 w-9 shrink-0 ring-2 ring-purple-500/20">
+                  <AvatarFallback className="bg-gradient-to-br from-violet-500 to-purple-600 text-white">
+                    <Bot className="h-4 w-4" />
+                  </AvatarFallback>
+                </Avatar>
+                <div className="bg-card/80 backdrop-blur-sm rounded-2xl px-4 py-3 border border-border/50">
+                  <div className="flex items-center gap-3">
+                    <div className="flex gap-1">
+                      {[0, 1, 2].map((i) => (
+                        <motion.div
+                          key={i}
+                          className="h-2 w-2 rounded-full bg-primary"
+                          animate={{ scale: [1, 1.2, 1], opacity: [0.5, 1, 0.5] }}
+                          transition={{ duration: 0.8, repeat: Infinity, delay: i * 0.2 }}
+                        />
+                      ))}
+                    </div>
+                    <span className="text-sm text-muted-foreground">
+                      {isCreatingTicket ? "Creating ticket..." : "Thinking..."}
+                    </span>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+            
+            {/* Scroll anchor */}
+            <div ref={messagesEndRef} />
+          </div>
+        </ScrollArea>
+
+        {/* Modern Input Area */}
+        <div className="p-4 border-t border-border/50 bg-gradient-to-t from-muted/30 to-transparent shrink-0">
+          {currentQuestion?.type === "text" ? (
+            <div className="flex gap-3">
+              <Input
+                ref={inputRef}
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && handleTextSubmit()}
+                placeholder="Type your response..."
+                disabled={isLoading || isCreatingTicket}
+                className="rounded-xl h-12 bg-card/80 border-border/50 focus:border-primary"
+              />
+              <Button 
+                onClick={handleTextSubmit}
+                disabled={!input.trim() || isLoading || isCreatingTicket}
+                className="rounded-xl h-12 px-5 bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 shadow-lg shadow-primary/20"
+              >
+                <Send className="h-5 w-5" />
+              </Button>
+            </div>
+          ) : (
+            <div className="text-center">
+              <p className="text-sm text-muted-foreground">
+                {currentQuestion?.type === "class-select" || currentQuestion?.type === "member-select" 
+                  ? "Use the button above to continue"
+                  : "Select an option above to continue"
+                }
+              </p>
+            </div>
           )}
         </div>
-      </ScrollArea>
+      </Card>
 
-      {/* Input */}
-      <div className="p-4 border-t bg-card/50 shrink-0">
-        {questionFlow[currentQuestionIndex]?.type === "text" ? (
-          <div className="flex gap-2">
-            <Input
-              ref={inputRef}
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && handleTextSubmit()}
-              placeholder="Type your response..."
-              disabled={isLoading || isCreatingTicket}
-              className="rounded-xl"
-            />
-            <Button 
-              onClick={handleTextSubmit}
-              disabled={!input.trim() || isLoading || isCreatingTicket}
-              className="rounded-xl px-4"
-            >
-              <Send className="h-4 w-4" />
-            </Button>
-          </div>
-        ) : (
-          <p className="text-xs text-center text-muted-foreground">
-            Select an option above to continue
-          </p>
-        )}
-      </div>
-    </Card>
+      {/* Class Selection Modal */}
+      <Dialog open={showClassModal} onOpenChange={setShowClassModal}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Calendar className="h-5 w-5 text-primary" />
+              Select a Class
+            </DialogTitle>
+          </DialogHeader>
+          <ClassSelector
+            selectedClass={selectedClass}
+            onClassSelect={handleClassSelect}
+            label=""
+            showBookingDetails={false}
+          />
+        </DialogContent>
+      </Dialog>
+
+      {/* Member Selection Modal */}
+      <Dialog open={showMemberModal} onOpenChange={setShowMemberModal}>
+        <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Users className="h-5 w-5 text-primary" />
+              Search & Select Member
+            </DialogTitle>
+          </DialogHeader>
+          <MomenceClientSearch
+            selectedClient={selectedMember}
+            onClientSelect={handleMemberSelect}
+          />
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }

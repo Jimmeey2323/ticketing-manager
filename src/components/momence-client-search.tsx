@@ -204,7 +204,7 @@ export function MomenceClientSearch({ onClientSelect, selectedClient }: MomenceC
                 {searchResults.map((member) => (
                   <Card
                     key={member.id}
-                    className="cursor-pointer hover:bg-accent transition-colors"
+                    className="cursor-pointer transition-all group hover:bg-gradient-to-r hover:from-primary hover:to-primary/80 hover:shadow-md hover:border-primary/50"
                     onClick={() => handleSelectMember(member)}
                   >
                     <CardContent className="p-3">
@@ -216,15 +216,15 @@ export function MomenceClientSearch({ onClientSelect, selectedClient }: MomenceC
                             className="h-10 w-10 rounded-full object-cover"
                           />
                         ) : (
-                          <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
-                            <User className="h-5 w-5 text-primary" />
+                          <div className="h-10 w-10 rounded-full bg-primary/10 group-hover:bg-white/20 flex items-center justify-center transition-colors">
+                            <User className="h-5 w-5 text-primary group-hover:text-white transition-colors" />
                           </div>
                         )}
                         <div className="flex-1 min-w-0">
-                          <p className="font-medium truncate">
+                          <p className="font-medium truncate text-foreground group-hover:text-white transition-colors">
                             {member.firstName} {member.lastName}
                           </p>
-                          <div className="flex items-center gap-3 text-sm text-muted-foreground">
+                          <div className="flex items-center gap-3 text-sm text-muted-foreground group-hover:text-white/80 transition-colors">
                             {member.email && (
                               <span className="flex items-center gap-1 truncate">
                                 <Mail className="h-3 w-3" />
@@ -240,7 +240,7 @@ export function MomenceClientSearch({ onClientSelect, selectedClient }: MomenceC
                           </div>
                         </div>
                         {member.visits && (
-                          <Badge variant="secondary">
+                          <Badge variant="secondary" className="group-hover:bg-white/20 group-hover:text-white transition-colors">
                             {member.visits.totalVisits} visits
                           </Badge>
                         )}
