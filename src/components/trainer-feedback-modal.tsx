@@ -21,6 +21,7 @@ import {
   ChevronRight,
   Search,
 } from "lucide-react";
+import { ClassSelector, type ClassSession } from "@/components/class-selector";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -140,6 +141,7 @@ export function TrainerFeedbackModal({ open, onOpenChange }: TrainerFeedbackModa
   const [selectedTrainer, setSelectedTrainer] = useState<TrainerProfile | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
+  const [selectedClass, setSelectedClass] = useState<ClassSession | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [aiInsights, setAiInsights] = useState<any>(null);
   
@@ -172,6 +174,39 @@ export function TrainerFeedbackModal({ open, onOpenChange }: TrainerFeedbackModa
       trainerName: trainer.name,
     }));
     setActiveTab("feedback");
+  };
+
+  const handleClassSelect = (session: ClassSession | null) => {
+    setSelectedClass(session);
+    if (session) {
+      // Auto-fill class details from the selected session
+      const classDate = session.startsAt 
+        ? new Date(session.startsAt).toISOString().split('T')[0] 
+        : '';
+      
+      setFeedbackForm(prev => ({
+        ...prev,
+        classType: session.name || '',
+        classDate: classDate,
+      }));
+
+      // If session has a teacher, optionally select them
+      if (session.teacher) {
+        const teacherName = `${session.teacher.firstName} ${session.teacher.lastName}`.trim();
+        const matchingTrainer = TRAINER_PROFILES.find(t => 
+          t.name.toLowerCase().includes(teacherName.toLowerCase()) ||
+          teacherName.toLowerCase().includes(t.name.toLowerCase())
+        );
+        if (matchingTrainer) {
+          setSelectedTrainer(matchingTrainer);
+          setFeedbackForm(prev => ({
+            ...prev,
+            trainerId: matchingTrainer.id,
+            trainerName: matchingTrainer.name,
+          }));
+        }
+      }
+    }
   };
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -528,14 +563,22 @@ ${aiInsights.insights ? `- Insights: ${aiInsights.insights}` : ''}
                   {/* Feedback Form */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="space-y-4">
+                      {/* Class Selector from Momence */}
+                      <ClassSelector
+                        onClassSelect={handleClassSelect}
+                        selectedClass={selectedClass}
+                        label="Select Class (from Momence)"
+                        placeholder="Search: Class Name | Date | Time | Teacher"
+                      />
+
                       <div className="space-y-2">
-                        <Label>Class Type</Label>
+                        <Label>Class Type (Manual Override)</Label>
                         <Select
                           value={feedbackForm.classType}
                           onValueChange={(value) => setFeedbackForm(prev => ({ ...prev, classType: value }))}
                         >
                           <SelectTrigger className="rounded-xl">
-                            <SelectValue placeholder="Select class type" />
+                            <SelectValue placeholder="Or select class type manually" />
                           </SelectTrigger>
                           <SelectContent>
                             <SelectItem value="barre">Barre</SelectItem>
