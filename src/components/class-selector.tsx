@@ -6,7 +6,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Calendar, User, Clock, X, Search, ChevronDown, MapPin, Plus } from "lucide-react";
+import { Calendar, User, Clock, X, Search, ChevronDown, MapPin, Plus, Users, CheckCircle2, XCircle, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
@@ -15,6 +15,22 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+
+export interface SessionBooking {
+  id: number;
+  createdAt: string;
+  checkedIn: boolean;
+  cancelledAt?: string;
+  customer: {
+    id: number;
+    firstName: string;
+    lastName: string;
+    email?: string;
+    phoneNumber?: string;
+    pictureUrl?: string;
+  };
+}
 
 export interface ClassSession {
   id: number;
@@ -26,6 +42,8 @@ export interface ClassSession {
   durationInMinutes: number;
   capacity: number;
   bookingCount?: number;
+  waitlistBookingCount?: number;
+  waitlistCapacity?: number;
   teacher?: {
     id: number;
     firstName: string;
@@ -45,21 +63,24 @@ export interface ClassSession {
     name: string;
     badgeColor?: string;
   }>;
-  // Formatted display string
   displayLabel?: string;
+  // Booking metrics
+  bookings?: SessionBooking[];
+  checkedInCount?: number;
+  cancelledCount?: number;
 }
 
 interface ClassSelectorProps {
-  onClassSelect: (session: ClassSession | null) => void;
+  onClassSelect: (session: ClassSession | null, bookings?: SessionBooking[]) => void;
   selectedClass: ClassSession | null;
   label?: string;
   placeholder?: string;
   multiple?: boolean;
   onMultipleSelect?: (sessions: ClassSession[]) => void;
   selectedClasses?: ClassSession[];
+  showBookingDetails?: boolean;
 }
 
-// Format class for dropdown display: Class Name | Date | Time | Teacher Name
 const formatClassLabel = (session: ClassSession): string => {
   const date = format(new Date(session.startsAt), "MMM d, yyyy");
   const time = format(new Date(session.startsAt), "h:mm a");
@@ -77,14 +98,18 @@ export function ClassSelector({
   placeholder = "Search and select a class...",
   multiple = false,
   onMultipleSelect,
-  selectedClasses = []
+  selectedClasses = [],
+  showBookingDetails = true
 }: ClassSelectorProps) {
   const [sessions, setSessions] = useState<ClassSession[]>([]);
   const [filteredSessions, setFilteredSessions] = useState<ClassSession[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [isLoadingBookings, setIsLoadingBookings] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [isOpen, setIsOpen] = useState(false);
   const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
+  const [bookings, setBookings] = useState<SessionBooking[]>([]);
+  const [showAttendees, setShowAttendees] = useState(false);
   const { toast } = useToast();
 
   const loadSessions = useCallback(async () => {
@@ -97,7 +122,6 @@ export function ClassSelector({
 
       if (error) throw error;
       
-      // Filter out cancelled/draft and format sessions
       const validSessions = (data?.payload || [])
         .filter((s: ClassSession) => !s.isCancelled && !s.isDraft)
         .map((s: ClassSession) => ({
@@ -121,14 +145,43 @@ export function ClassSelector({
     }
   }, [toast, isLoading]);
 
-  // Auto-load sessions on first open
+  const loadSessionBookings = useCallback(async (sessionId: number) => {
+    setIsLoadingBookings(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("momence-api", {
+        body: { action: "getSessionBookings", sessionId, pageSize: 100 },
+      });
+
+      if (error) throw error;
+      
+      const bookingData = data?.payload || [];
+      setBookings(bookingData);
+      setShowAttendees(true);
+      
+      // Calculate metrics
+      const checkedInCount = bookingData.filter((b: SessionBooking) => b.checkedIn).length;
+      const cancelledCount = bookingData.filter((b: SessionBooking) => b.cancelledAt).length;
+      
+      return { bookings: bookingData, checkedInCount, cancelledCount };
+    } catch (error) {
+      console.error("Error loading session bookings:", error);
+      toast({
+        title: "Failed to Load Bookings",
+        description: "Could not load session attendees.",
+        variant: "destructive",
+      });
+      return { bookings: [], checkedInCount: 0, cancelledCount: 0 };
+    } finally {
+      setIsLoadingBookings(false);
+    }
+  }, [toast]);
+
   useEffect(() => {
     if (isOpen && !hasLoadedOnce) {
       loadSessions();
     }
   }, [isOpen, hasLoadedOnce, loadSessions]);
 
-  // Filter sessions by search query
   useEffect(() => {
     if (!searchQuery.trim()) {
       setFilteredSessions(sessions);
@@ -146,7 +199,7 @@ export function ClassSelector({
     }
   }, [searchQuery, sessions]);
 
-  const handleSelectSession = (session: ClassSession) => {
+  const handleSelectSession = async (session: ClassSession) => {
     if (multiple && onMultipleSelect) {
       const isAlreadySelected = selectedClasses.some(s => s.id === session.id);
       if (isAlreadySelected) {
@@ -155,7 +208,19 @@ export function ClassSelector({
         onMultipleSelect([...selectedClasses, session]);
       }
     } else {
-      onClassSelect(session);
+      // Load bookings for the selected session
+      if (showBookingDetails) {
+        const bookingData = await loadSessionBookings(session.id);
+        const enrichedSession: ClassSession = {
+          ...session,
+          bookings: bookingData.bookings,
+          checkedInCount: bookingData.checkedInCount,
+          cancelledCount: bookingData.cancelledCount,
+        };
+        onClassSelect(enrichedSession, bookingData.bookings);
+      } else {
+        onClassSelect(session);
+      }
       setIsOpen(false);
       setSearchQuery("");
     }
@@ -163,6 +228,8 @@ export function ClassSelector({
 
   const handleClearSession = () => {
     onClassSelect(null);
+    setBookings([]);
+    setShowAttendees(false);
   };
 
   const isSessionSelected = (sessionId: number) => {
@@ -177,6 +244,11 @@ export function ClassSelector({
       onMultipleSelect(selectedClasses.filter(s => s.id !== sessionId));
     }
   };
+
+  // Calculate metrics
+  const checkedInCount = bookings.filter(b => b.checkedIn).length;
+  const cancelledCount = bookings.filter(b => b.cancelledAt).length;
+  const activeBookings = bookings.filter(b => !b.cancelledAt);
 
   // Multiple selection display
   if (multiple && selectedClasses.length > 0) {
@@ -245,42 +317,64 @@ export function ClassSelector({
   // Single selection with selected class display
   if (!multiple && selectedClass) {
     return (
-      <div className="space-y-2">
+      <div className="space-y-3">
         <Label className="text-sm font-medium">{label}</Label>
         <Card className="border-primary/30 bg-primary/5">
-          <CardContent className="p-3">
+          <CardContent className="p-4">
             <div className="flex items-start justify-between gap-2">
-              <div className="flex-1 space-y-1">
-                <p className="font-medium">{selectedClass.name}</p>
-                <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-                  <span className="flex items-center gap-1">
-                    <Calendar className="h-3 w-3" />
-                    {format(new Date(selectedClass.startsAt), "MMM d, yyyy h:mm a")}
-                  </span>
-                  <span className="flex items-center gap-1">
-                    <Clock className="h-3 w-3" />
-                    {selectedClass.durationInMinutes} mins
-                  </span>
+              <div className="flex-1 space-y-2">
+                <p className="font-semibold text-lg">{selectedClass.name}</p>
+                <div className="grid grid-cols-2 gap-3 text-sm">
+                  <div className="flex items-center gap-2 text-muted-foreground">
+                    <Calendar className="h-4 w-4" />
+                    <span>{format(new Date(selectedClass.startsAt), "MMM d, yyyy")}</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-muted-foreground">
+                    <Clock className="h-4 w-4" />
+                    <span>{format(new Date(selectedClass.startsAt), "h:mm a")} ({selectedClass.durationInMinutes} mins)</span>
+                  </div>
+                  {selectedClass.teacher && (
+                    <div className="flex items-center gap-2 text-muted-foreground">
+                      <User className="h-4 w-4" />
+                      <span>{selectedClass.teacher.firstName} {selectedClass.teacher.lastName}</span>
+                    </div>
+                  )}
+                  {selectedClass.inPersonLocation && (
+                    <div className="flex items-center gap-2 text-muted-foreground">
+                      <MapPin className="h-4 w-4" />
+                      <span>{selectedClass.inPersonLocation.name}</span>
+                    </div>
+                  )}
                 </div>
-                {selectedClass.teacher && (
-                  <p className="text-sm flex items-center gap-1">
-                    <User className="h-3 w-3" />
-                    {selectedClass.teacher.firstName} {selectedClass.teacher.lastName}
-                  </p>
-                )}
-                {selectedClass.inPersonLocation && (
-                  <p className="text-sm flex items-center gap-1">
-                    <MapPin className="h-3 w-3" />
-                    {selectedClass.inPersonLocation.name}
-                  </p>
-                )}
+
+                {/* Class Metrics */}
+                <div className="flex flex-wrap gap-2 pt-2 border-t border-border/50">
+                  <Badge variant="outline" className="gap-1">
+                    <Users className="h-3 w-3" />
+                    {selectedClass.bookingCount || 0}/{selectedClass.capacity} Booked
+                  </Badge>
+                  <Badge variant="outline" className="gap-1 text-emerald-600 border-emerald-600/30">
+                    <CheckCircle2 className="h-3 w-3" />
+                    {checkedInCount} Checked In
+                  </Badge>
+                  <Badge variant="outline" className="gap-1 text-destructive border-destructive/30">
+                    <XCircle className="h-3 w-3" />
+                    {cancelledCount} Cancelled
+                  </Badge>
+                  {selectedClass.waitlistBookingCount !== undefined && selectedClass.waitlistBookingCount > 0 && (
+                    <Badge variant="secondary" className="gap-1">
+                      Waitlist: {selectedClass.waitlistBookingCount}
+                    </Badge>
+                  )}
+                </div>
               </div>
               <Button variant="ghost" size="sm" onClick={handleClearSession}>
                 <X className="h-4 w-4" />
               </Button>
             </div>
+            
             {selectedClass.tags && selectedClass.tags.length > 0 && (
-              <div className="flex flex-wrap gap-1 mt-2">
+              <div className="flex flex-wrap gap-1 mt-3">
                 {selectedClass.tags.map((tag) => (
                   <Badge
                     key={tag.id}
@@ -292,6 +386,60 @@ export function ClassSelector({
                   </Badge>
                 ))}
               </div>
+            )}
+
+            {/* Attendees List */}
+            {showBookingDetails && bookings.length > 0 && (
+              <Collapsible open={showAttendees} onOpenChange={setShowAttendees} className="mt-3">
+                <CollapsibleTrigger asChild>
+                  <Button variant="outline" size="sm" className="w-full justify-between">
+                    <span className="flex items-center gap-2">
+                      <Users className="h-4 w-4" />
+                      Attendees ({activeBookings.length})
+                    </span>
+                    {isLoadingBookings ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <ChevronDown className={`h-4 w-4 transition-transform ${showAttendees ? 'rotate-180' : ''}`} />
+                    )}
+                  </Button>
+                </CollapsibleTrigger>
+                <CollapsibleContent className="mt-2">
+                  <ScrollArea className="h-[200px] rounded-md border">
+                    <div className="p-2 space-y-1">
+                      {activeBookings.map((booking) => (
+                        <div 
+                          key={booking.id} 
+                          className="flex items-center gap-3 p-2 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors"
+                        >
+                          {booking.customer.pictureUrl ? (
+                            <img
+                              src={booking.customer.pictureUrl}
+                              alt={`${booking.customer.firstName} ${booking.customer.lastName}`}
+                              className="h-8 w-8 rounded-full object-cover"
+                            />
+                          ) : (
+                            <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
+                              <User className="h-4 w-4 text-primary" />
+                            </div>
+                          )}
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium truncate">
+                              {booking.customer.firstName} {booking.customer.lastName}
+                            </p>
+                            {booking.customer.email && (
+                              <p className="text-xs text-muted-foreground truncate">{booking.customer.email}</p>
+                            )}
+                          </div>
+                          <Badge variant={booking.checkedIn ? "default" : "secondary"} className="text-xs">
+                            {booking.checkedIn ? "Checked In" : "Booked"}
+                          </Badge>
+                        </div>
+                      ))}
+                    </div>
+                  </ScrollArea>
+                </CollapsibleContent>
+              </Collapsible>
             )}
           </CardContent>
         </Card>
@@ -375,21 +523,23 @@ function SessionSearchContent({
               return (
                 <div
                   key={session.id}
-                  className={`p-3 rounded-lg cursor-pointer transition-colors border ${
+                  className={`p-3 rounded-lg cursor-pointer transition-all border group ${
                     selected 
                       ? 'bg-primary/10 border-primary/30' 
-                      : 'hover:bg-accent border-transparent hover:border-border'
+                      : 'hover:bg-gradient-to-r hover:from-primary hover:to-primary/80 border-transparent hover:border-primary/50 hover:shadow-md'
                   }`}
                   onClick={() => handleSelectSession(session)}
                 >
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex-1 min-w-0">
-                      {/* Formatted display label */}
-                      <p className="text-sm font-medium text-foreground truncate">
+                      <p className={`text-sm font-medium truncate transition-colors ${
+                        selected ? 'text-foreground' : 'text-foreground group-hover:text-white'
+                      }`}>
                         {session.displayLabel}
                       </p>
-                      {/* Additional details */}
-                      <div className="flex flex-wrap items-center gap-2 mt-1 text-xs text-muted-foreground">
+                      <div className={`flex flex-wrap items-center gap-2 mt-1 text-xs transition-colors ${
+                        selected ? 'text-muted-foreground' : 'text-muted-foreground group-hover:text-white/80'
+                      }`}>
                         <span>{session.durationInMinutes} mins</span>
                         {session.inPersonLocation && (
                           <span className="flex items-center gap-1">
