@@ -286,6 +286,191 @@ export type Database = {
           },
         ]
       }
+      escalationLog: {
+        Row: {
+          createdAt: string | null
+          createdBy: string | null
+          escalatedFrom: string | null
+          escalatedTo: string | null
+          escalatedToDepartmentId: string | null
+          escalatedToTeamId: string | null
+          escalationType: string
+          id: string
+          newPriority: string | null
+          notes: string | null
+          previousPriority: string | null
+          reason: string | null
+          ruleId: string | null
+          ticketId: string
+        }
+        Insert: {
+          createdAt?: string | null
+          createdBy?: string | null
+          escalatedFrom?: string | null
+          escalatedTo?: string | null
+          escalatedToDepartmentId?: string | null
+          escalatedToTeamId?: string | null
+          escalationType: string
+          id?: string
+          newPriority?: string | null
+          notes?: string | null
+          previousPriority?: string | null
+          reason?: string | null
+          ruleId?: string | null
+          ticketId: string
+        }
+        Update: {
+          createdAt?: string | null
+          createdBy?: string | null
+          escalatedFrom?: string | null
+          escalatedTo?: string | null
+          escalatedToDepartmentId?: string | null
+          escalatedToTeamId?: string | null
+          escalationType?: string
+          id?: string
+          newPriority?: string | null
+          notes?: string | null
+          previousPriority?: string | null
+          reason?: string | null
+          ruleId?: string | null
+          ticketId?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "escalationLog_escalatedToDepartmentId_fkey"
+            columns: ["escalatedToDepartmentId"]
+            isOneToOne: false
+            referencedRelation: "departments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "escalationLog_escalatedToTeamId_fkey"
+            columns: ["escalatedToTeamId"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "escalationLog_ruleId_fkey"
+            columns: ["ruleId"]
+            isOneToOne: false
+            referencedRelation: "escalationRules"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "escalationLog_ticketId_fkey"
+            columns: ["ticketId"]
+            isOneToOne: false
+            referencedRelation: "tickets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      escalationRules: {
+        Row: {
+          categoryId: string | null
+          changePriority: string | null
+          createdAt: string | null
+          description: string | null
+          escalateTo: string | null
+          escalateToDepartmentId: string | null
+          escalateToTeamId: string | null
+          id: string
+          isActive: boolean | null
+          name: string
+          notificationTemplate: string | null
+          notifyRoles: string[] | null
+          priority: string | null
+          runOrder: number | null
+          sendNotification: boolean | null
+          studioId: string | null
+          subcategoryId: string | null
+          triggerType: string
+          triggerValue: number | null
+          updatedAt: string | null
+        }
+        Insert: {
+          categoryId?: string | null
+          changePriority?: string | null
+          createdAt?: string | null
+          description?: string | null
+          escalateTo?: string | null
+          escalateToDepartmentId?: string | null
+          escalateToTeamId?: string | null
+          id?: string
+          isActive?: boolean | null
+          name: string
+          notificationTemplate?: string | null
+          notifyRoles?: string[] | null
+          priority?: string | null
+          runOrder?: number | null
+          sendNotification?: boolean | null
+          studioId?: string | null
+          subcategoryId?: string | null
+          triggerType?: string
+          triggerValue?: number | null
+          updatedAt?: string | null
+        }
+        Update: {
+          categoryId?: string | null
+          changePriority?: string | null
+          createdAt?: string | null
+          description?: string | null
+          escalateTo?: string | null
+          escalateToDepartmentId?: string | null
+          escalateToTeamId?: string | null
+          id?: string
+          isActive?: boolean | null
+          name?: string
+          notificationTemplate?: string | null
+          notifyRoles?: string[] | null
+          priority?: string | null
+          runOrder?: number | null
+          sendNotification?: boolean | null
+          studioId?: string | null
+          subcategoryId?: string | null
+          triggerType?: string
+          triggerValue?: number | null
+          updatedAt?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "escalationRules_categoryId_fkey"
+            columns: ["categoryId"]
+            isOneToOne: false
+            referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "escalationRules_escalateToDepartmentId_fkey"
+            columns: ["escalateToDepartmentId"]
+            isOneToOne: false
+            referencedRelation: "departments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "escalationRules_escalateToTeamId_fkey"
+            columns: ["escalateToTeamId"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "escalationRules_studioId_fkey"
+            columns: ["studioId"]
+            isOneToOne: false
+            referencedRelation: "studios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "escalationRules_subcategoryId_fkey"
+            columns: ["subcategoryId"]
+            isOneToOne: false
+            referencedRelation: "subcategories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       fieldTypes: {
         Row: {
           description: string | null
@@ -501,6 +686,72 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      savedReports: {
+        Row: {
+          chartType: string | null
+          columns: string[] | null
+          createdAt: string | null
+          createdBy: string
+          description: string | null
+          filters: Json | null
+          groupBy: string | null
+          id: string
+          isPublic: boolean | null
+          lastRunAt: string | null
+          name: string
+          nextRunAt: string | null
+          recipients: string[] | null
+          reportType: string
+          schedule: string | null
+          sharedWith: string[] | null
+          sortBy: string | null
+          sortOrder: string | null
+          updatedAt: string | null
+        }
+        Insert: {
+          chartType?: string | null
+          columns?: string[] | null
+          createdAt?: string | null
+          createdBy: string
+          description?: string | null
+          filters?: Json | null
+          groupBy?: string | null
+          id?: string
+          isPublic?: boolean | null
+          lastRunAt?: string | null
+          name: string
+          nextRunAt?: string | null
+          recipients?: string[] | null
+          reportType?: string
+          schedule?: string | null
+          sharedWith?: string[] | null
+          sortBy?: string | null
+          sortOrder?: string | null
+          updatedAt?: string | null
+        }
+        Update: {
+          chartType?: string | null
+          columns?: string[] | null
+          createdAt?: string | null
+          createdBy?: string
+          description?: string | null
+          filters?: Json | null
+          groupBy?: string | null
+          id?: string
+          isPublic?: boolean | null
+          lastRunAt?: string | null
+          name?: string
+          nextRunAt?: string | null
+          recipients?: string[] | null
+          reportType?: string
+          schedule?: string | null
+          sharedWith?: string[] | null
+          sortBy?: string | null
+          sortOrder?: string | null
+          updatedAt?: string | null
+        }
+        Relationships: []
       }
       sessions: {
         Row: {
