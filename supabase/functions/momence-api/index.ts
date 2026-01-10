@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const MOMENCE_BASE_URL = "https://api.momence.com/api/v2";
 
@@ -76,12 +77,74 @@ async function authenticate(): Promise<string | null> {
   }
 }
 
+// Verify Supabase user authentication
+async function verifyUser(req: Request): Promise<{ user: any; error?: string }> {
+  const authHeader = req.headers.get("Authorization");
+  
+  if (!authHeader?.startsWith("Bearer ")) {
+    return { user: null, error: "Missing or invalid authorization header" };
+  }
+
+  const supabaseUrl = Deno.env.get("SUPABASE_URL");
+  const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY");
+
+  if (!supabaseUrl || !supabaseAnonKey) {
+    console.error("Missing Supabase environment variables");
+    return { user: null, error: "Server configuration error" };
+  }
+
+  const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+    global: { headers: { Authorization: authHeader } },
+  });
+
+  const token = authHeader.replace("Bearer ", "");
+  const { data, error } = await supabase.auth.getUser(token);
+
+  if (error || !data?.user) {
+    console.error("User verification failed:", error?.message);
+    return { user: null, error: "Unauthorized - invalid or expired token" };
+  }
+
+  // Check if user has a role (admin, manager, staff, or viewer can access Momence data)
+  const { data: roles, error: roleError } = await supabase
+    .from("user_roles")
+    .select("role")
+    .eq("user_id", data.user.id);
+
+  if (roleError) {
+    console.error("Role check failed:", roleError.message);
+    return { user: null, error: "Failed to verify user permissions" };
+  }
+
+  if (!roles || roles.length === 0) {
+    console.error("User has no roles assigned:", data.user.id);
+    return { user: null, error: "Insufficient permissions - no role assigned" };
+  }
+
+  console.log("User authenticated:", { userId: data.user.id, roles: roles.map(r => r.role) });
+  return { user: data.user };
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
+    // Verify user authentication first
+    const { user, error: authError } = await verifyUser(req);
+    
+    if (authError || !user) {
+      return new Response(
+        JSON.stringify({ error: authError || "Unauthorized" }),
+        {
+          status: 401,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
+    }
+
+    // Now authenticate with Momence API
     const accessToken = await authenticate();
     
     if (!accessToken) {
