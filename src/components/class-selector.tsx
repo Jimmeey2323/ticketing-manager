@@ -84,8 +84,8 @@ interface ClassSelectorProps {
 const formatClassLabel = (session: ClassSession): string => {
   const date = format(new Date(session.startsAt), "MMM d, yyyy");
   const time = format(new Date(session.startsAt), "h:mm a");
-  const teacherName = session.teacher 
-    ? `${session.teacher.firstName} ${session.teacher.lastName}`.trim() 
+  const teacherName = session.teacher?.firstName 
+    ? `${session.teacher.firstName} ${session.teacher.lastName || ''}`.trim() 
     : "No Teacher";
   
   return `${session.name} | ${date} | ${time} | ${teacherName}`;
@@ -123,11 +123,24 @@ export function ClassSelector({
       if (error) throw error;
       
       const validSessions = (data?.payload || [])
-        .filter((s: ClassSession) => !s.isCancelled && !s.isDraft)
-        .map((s: ClassSession) => ({
-          ...s,
-          displayLabel: formatClassLabel(s)
-        }));
+        .filter((s: any) => s && !s.isCancelled && !s.isDraft && s.startsAt)
+        .map((s: any) => {
+          // Safely extract teacher info handling nested/malformed data
+          const teacher = s.teacher && typeof s.teacher === 'object' && s.teacher.firstName
+            ? {
+                id: s.teacher.id,
+                firstName: s.teacher.firstName || '',
+                lastName: s.teacher.lastName || '',
+                pictureUrl: s.teacher.pictureUrl
+              }
+            : undefined;
+          
+          return {
+            ...s,
+            teacher,
+            displayLabel: formatClassLabel({ ...s, teacher })
+          } as ClassSession;
+        });
       
       setSessions(validSessions);
       setFilteredSessions(validSessions);
