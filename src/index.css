@@ -466,6 +466,39 @@
     pointer-events: none;
   }
 
+  /* Highlighted template field (user input required) */
+  .template-field-highlight {
+    position: relative;
+    animation: pulse-border 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+
+  .template-field-highlight::after {
+    content: '✨ Your input needed';
+    position: absolute;
+    top: -1.75rem;
+    right: 0;
+    font-size: 0.625rem;
+    font-weight: 600;
+    color: hsl(var(--secondary));
+    background: linear-gradient(135deg, hsl(var(--secondary) / 0.1) 0%, hsl(var(--accent) / 0.1) 100%);
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.375rem;
+    border: 1px solid hsl(var(--secondary) / 0.2);
+    white-space: nowrap;
+    pointer-events: none;
+  }
+
+  @keyframes pulse-border {
+    0%, 100% {
+      border-color: hsl(var(--secondary) / 0.5);
+      box-shadow: 0 0 0 0 hsl(var(--secondary) / 0.4);
+    }
+    50% {
+      border-color: hsl(var(--secondary));
+      box-shadow: 0 0 0 4px hsl(var(--secondary) / 0.1);
+    }
+  }
+
   /* Metric card style */
   .metric-card {
     @apply glass-card p-6 relative overflow-hidden;

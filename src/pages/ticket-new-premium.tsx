@@ -256,6 +256,7 @@ export default function TicketCreationPremium() {
   const [selectedMomenceSession, setSelectedMomenceSession] = useState<ClassSession | null>(null);
   const [showAIChatbot, setShowAIChatbot] = useState(false);
   const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
+  const [highlightedFields, setHighlightedFields] = useState<string[]>([]);
 
   // Collapsible states
   const [clientDetailsOpen, setClientDetailsOpen] = useState(false);
@@ -446,7 +447,7 @@ export default function TicketCreationPremium() {
     form.setValue('includeTrainerDetails', trainerDetailsOpen);
   }, [trainerDetailsOpen, form]);
 
-  // Template prefilling effect
+  // Template prefilling effect with formFields processing
   useEffect(() => {
     if (templateId && categories.length > 0 && currentStep === 1) {
       const template = TICKET_TEMPLATES.find(t => t.id === templateId);
@@ -462,26 +463,91 @@ export default function TicketCreationPremium() {
           form.setValue('categoryId', matchingCategory.id);
         }
 
-        form.setValue('title', template.suggestedTitle);
-        form.setValue('description', template.suggestedDescription);
-        form.setValue('priority', template.priority);
+        // Process formFields if available (new comprehensive template system)
+        if (template.formFields && template.formFields.length > 0) {
+          let hasCustomerFields = false;
+          let hasClassFields = false;
+          let hasTrainerFields = false;
+          let firstHighlightedField: string | null = null;
+          const highlightedFieldNames: string[] = [];
 
-        if (template.category.includes('Customer') || template.category.includes('Service')) {
-          setClientDetailsOpen(true);
+          template.formFields.forEach((field) => {
+            const { fieldName, value, highlighted, placeholder } = field;
+
+            // Track field types for auto-opening collapsible sections
+            if (fieldName.startsWith('customer')) hasCustomerFields = true;
+            if (fieldName.startsWith('class')) hasClassFields = true;
+            if (fieldName.startsWith('trainer')) hasTrainerFields = true;
+
+            // Track highlighted fields
+            if (highlighted) {
+              highlightedFieldNames.push(fieldName);
+              if (!firstHighlightedField) {
+                firstHighlightedField = fieldName;
+              }
+            }
+
+            // Set field value - replace placeholder brackets with empty string for user input
+            if (placeholder && typeof value === 'string' && value.match(/\[.*?\]/)) {
+              form.setValue(fieldName as any, '');
+            } else {
+              form.setValue(fieldName as any, value);
+            }
+          });
+
+          // Update highlighted fields state
+          setHighlightedFields(highlightedFieldNames);
+
+          // Auto-open relevant collapsible sections
+          if (hasCustomerFields) {
+            setClientDetailsOpen(true);
+          }
+          if (hasClassFields) {
+            setClassDetailsOpen(true);
+          }
+          if (hasTrainerFields) {
+            setTrainerDetailsOpen(true);
+          }
+
+          toast({
+            title: "Template Applied",
+            description: `Using "${template.name}" template. ${firstHighlightedField ? 'Highlighted fields require your input.' : 'Please review and customize.'}`,
+          });
+
+          // Auto advance to step 2 and scroll to first highlighted field
+          setCurrentStep(2);
+          setTimeout(() => {
+            if (firstHighlightedField) {
+              const element = document.querySelector(`[name="${firstHighlightedField}"]`);
+              if (element) {
+                element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                (element as HTMLElement).focus();
+              }
+            }
+          }, 300);
+        } else {
+          // Fallback to legacy template system
+          form.setValue('title', template.suggestedTitle);
+          form.setValue('description', template.suggestedDescription);
+          form.setValue('priority', template.priority);
+
+          if (template.category.includes('Customer') || template.category.includes('Service')) {
+            setClientDetailsOpen(true);
+          }
+          if (template.suggestedDescription.toLowerCase().includes('class') ||
+              template.suggestedDescription.toLowerCase().includes('trainer')) {
+            setClassDetailsOpen(true);
+            setTrainerDetailsOpen(true);
+          }
+
+          toast({
+            title: "Template Applied",
+            description: `Using "${template.name}" template. Please fill in the bracketed fields.`,
+          });
+
+          // Auto advance to step 2
+          setCurrentStep(2);
         }
-        if (template.suggestedDescription.toLowerCase().includes('class') ||
-            template.suggestedDescription.toLowerCase().includes('trainer')) {
-          setClassDetailsOpen(true);
-          setTrainerDetailsOpen(true);
-        }
-
-        toast({
-          title: "Template Applied",
-          description: `Using "${template.name}" template. Please fill in the bracketed fields.`,
-        });
-
-        // Auto advance to step 2
-        setCurrentStep(2);
       }
     }
   }, [templateId, categories, form, toast, selectedTemplateId, currentStep]);
@@ -540,6 +606,11 @@ export default function TicketCreationPremium() {
       form.setValue("customerMembershipId", client.id ? String(client.id) : "");
       form.setValue("source", "momence");
     }
+  };
+
+  // Helper to check if field should be highlighted
+  const isFieldHighlighted = (fieldName: string): boolean => {
+    return highlightedFields.includes(fieldName);
   };
 
   const handleMomenceSessionSelect = (session: ClassSession | null) => {
@@ -1088,7 +1159,10 @@ export default function TicketCreationPremium() {
                             <FormControl>
                               <Textarea
                                 placeholder="Describe the issue in your own words..."
-                                className="min-h-24 rounded-xl text-sm"
+                                className={cn(
+                                  "min-h-24 rounded-xl text-sm",
+                                  isFieldHighlighted("description") && "template-field-highlight"
+                                )}
                                 {...field}
                               />
                             </FormControl>
@@ -1108,7 +1182,10 @@ export default function TicketCreationPremium() {
                                 <FormControl>
                                   <Input
                                     placeholder="Brief summary of the issue"
-                                    className="rounded-xl text-sm"
+                                    className={cn(
+                                      "rounded-xl text-sm",
+                                      isFieldHighlighted("title") && "template-field-highlight"
+                                    )}
                                     {...field}
                                   />
                                 </FormControl>
@@ -1435,7 +1512,14 @@ export default function TicketCreationPremium() {
                                 <FormItem>
                                   <FormLabel className="text-sm font-medium">Client Name *</FormLabel>
                                   <FormControl>
-                                    <Input placeholder="Full name" className="rounded-xl text-sm" {...field} />
+                                    <Input
+                                      placeholder="Full name"
+                                      className={cn(
+                                        "rounded-xl text-sm",
+                                        isFieldHighlighted("customerName") && "template-field-highlight"
+                                      )}
+                                      {...field}
+                                    />
                                   </FormControl>
                                   <FormMessage className="text-xs" />
                                 </FormItem>
@@ -1448,7 +1532,15 @@ export default function TicketCreationPremium() {
                                 <FormItem>
                                   <FormLabel className="text-sm font-medium">Email</FormLabel>
                                   <FormControl>
-                                    <Input type="email" placeholder="email@example.com" className="rounded-xl text-sm" {...field} />
+                                    <Input
+                                      type="email"
+                                      placeholder="email@example.com"
+                                      className={cn(
+                                        "rounded-xl text-sm",
+                                        isFieldHighlighted("customerEmail") && "template-field-highlight"
+                                      )}
+                                      {...field}
+                                    />
                                   </FormControl>
                                   <FormMessage className="text-xs" />
                                 </FormItem>
@@ -1461,7 +1553,15 @@ export default function TicketCreationPremium() {
                                 <FormItem>
                                   <FormLabel className="text-sm font-medium">Phone</FormLabel>
                                   <FormControl>
-                                    <Input type="tel" placeholder="+91 XXXXX XXXXX" className="rounded-xl text-sm" {...field} />
+                                    <Input
+                                      type="tel"
+                                      placeholder="+91 XXXXX XXXXX"
+                                      className={cn(
+                                        "rounded-xl text-sm",
+                                        isFieldHighlighted("customerPhone") && "template-field-highlight"
+                                      )}
+                                      {...field}
+                                    />
                                   </FormControl>
                                   <FormMessage className="text-xs" />
                                 </FormItem>
@@ -1578,7 +1678,12 @@ export default function TicketCreationPremium() {
                                   <FormLabel className="text-sm font-medium">Class Name *</FormLabel>
                                   <Select onValueChange={field.onChange} value={field.value}>
                                     <FormControl>
-                                      <SelectTrigger className="rounded-xl bg-background text-sm">
+                                      <SelectTrigger
+                                        className={cn(
+                                          "rounded-xl bg-background text-sm",
+                                          isFieldHighlighted("className") && "template-field-highlight"
+                                        )}
+                                      >
                                         <SelectValue placeholder="Select class" />
                                       </SelectTrigger>
                                     </FormControl>
@@ -1599,7 +1704,14 @@ export default function TicketCreationPremium() {
                                 <FormItem>
                                   <FormLabel className="text-sm font-medium">Class Date & Time</FormLabel>
                                   <FormControl>
-                                    <Input type="datetime-local" className="rounded-xl text-sm" {...field} />
+                                    <Input
+                                      type="datetime-local"
+                                      className={cn(
+                                        "rounded-xl text-sm",
+                                        isFieldHighlighted("classDateTime") && "template-field-highlight"
+                                      )}
+                                      {...field}
+                                    />
                                   </FormControl>
                                   <FormMessage className="text-xs" />
                                 </FormItem>
@@ -1646,7 +1758,12 @@ export default function TicketCreationPremium() {
                                   <FormLabel className="text-sm font-medium">Trainer Name *</FormLabel>
                                   <Select onValueChange={field.onChange} value={field.value}>
                                     <FormControl>
-                                      <SelectTrigger className="rounded-xl bg-background text-sm">
+                                      <SelectTrigger
+                                        className={cn(
+                                          "rounded-xl bg-background text-sm",
+                                          isFieldHighlighted("trainerName") && "template-field-highlight"
+                                        )}
+                                      >
                                         <SelectValue placeholder="Select trainer" />
                                       </SelectTrigger>
                                     </FormControl>
@@ -1669,7 +1786,15 @@ export default function TicketCreationPremium() {
                                 <FormItem>
                                   <FormLabel className="text-sm font-medium">Trainer Email</FormLabel>
                                   <FormControl>
-                                    <Input type="email" placeholder="trainer@example.com" className="rounded-xl text-sm" {...field} />
+                                    <Input
+                                      type="email"
+                                      placeholder="trainer@example.com"
+                                      className={cn(
+                                        "rounded-xl text-sm",
+                                        isFieldHighlighted("trainerEmail") && "template-field-highlight"
+                                      )}
+                                      {...field}
+                                    />
                                   </FormControl>
                                   <FormMessage className="text-xs" />
                                 </FormItem>
@@ -1682,7 +1807,15 @@ export default function TicketCreationPremium() {
                                 <FormItem>
                                   <FormLabel className="text-sm font-medium">Trainer Phone</FormLabel>
                                   <FormControl>
-                                    <Input type="tel" placeholder="+91 XXXXX XXXXX" className="rounded-xl text-sm" {...field} />
+                                    <Input
+                                      type="tel"
+                                      placeholder="+91 XXXXX XXXXX"
+                                      className={cn(
+                                        "rounded-xl text-sm",
+                                        isFieldHighlighted("trainerPhone") && "template-field-highlight"
+                                      )}
+                                      {...field}
+                                    />
                                   </FormControl>
                                   <FormMessage className="text-xs" />
                                 </FormItem>
@@ -1731,7 +1864,14 @@ export default function TicketCreationPremium() {
                           <FormItem>
                             <FormLabel className="text-sm font-medium">Incident Date & Time</FormLabel>
                             <FormControl>
-                              <Input type="datetime-local" className="rounded-xl text-sm" {...field} />
+                              <Input
+                                type="datetime-local"
+                                className={cn(
+                                  "rounded-xl text-sm",
+                                  isFieldHighlighted("incidentDateTime") && "template-field-highlight"
+                                )}
+                                {...field}
+                              />
                             </FormControl>
                             <FormDescription className="text-xs">
                               When did the incident actually occur?
