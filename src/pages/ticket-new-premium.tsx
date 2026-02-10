@@ -856,56 +856,56 @@ export default function TicketCreationPremium() {
         control={form.control}
         name={field.uniqueId as any}
         render={({ field: formField }) => (
-          <FormItem className="space-y-2">
-            <FormLabel className="flex items-center gap-2 text-sm font-medium">
+          <FormItem>
+            <FormLabel className="text-xs font-medium text-foreground/80">
               {fieldLabel}
-              {field.isRequired && <span className="text-destructive">*</span>}
+              {field.isRequired && <span className="text-destructive ml-1">*</span>}
             </FormLabel>
             <FormControl>
               {inputComponent === 'Select' || fieldTypeName === 'Dropdown' ? (
                 <Select onValueChange={formField.onChange} value={(formField.value as string) || ''}>
-                  <SelectTrigger className="rounded-xl bg-background/80 border-border/60 hover:border-primary/40 transition-colors text-sm">
-                    <SelectValue placeholder={`Select ${fieldLabel.toLowerCase()}`} />
+                  <SelectTrigger className="h-9 rounded-lg text-xs">
+                    <SelectValue placeholder="Select..." />
                   </SelectTrigger>
                   <SelectContent className="bg-popover border border-border z-50">
                     {field.options?.filter(opt => opt && opt.trim() !== '').map((opt, idx) => (
-                      <SelectItem key={idx} value={opt} className="text-sm">{opt}</SelectItem>
+                      <SelectItem key={idx} value={opt} className="text-xs">{opt}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               ) : inputComponent === 'Textarea' || fieldTypeName === 'Long Text' ? (
                 <Textarea
-                  placeholder={`Enter ${fieldLabel.toLowerCase()}`}
+                  placeholder=""
                   value={(formField.value as string) || ''}
                   onChange={formField.onChange}
-                  className="rounded-xl bg-background/80 border-border/60 hover:border-primary/40 transition-colors min-h-24 text-sm"
+                  className="rounded-lg min-h-20 text-xs resize-none"
                 />
               ) : inputComponent === 'Checkbox' || fieldTypeName === 'Checkbox' ? (
-                <div className="flex items-center gap-3 p-3 rounded-xl bg-background/60 border border-border/40">
+                <div className="flex items-center gap-2 h-9">
                   <Checkbox
                     id={field.uniqueId}
                     checked={formField.value === 'Yes' || formField.value === true}
                     onCheckedChange={(checked) => formField.onChange(checked ? 'Yes' : 'No')}
-                    className="h-5 w-5"
+                    className="h-4 w-4"
                   />
-                  <label htmlFor={field.uniqueId} className="text-sm text-foreground/80 cursor-pointer">
+                  <label htmlFor={field.uniqueId} className="text-xs text-foreground/70 cursor-pointer">
                     Yes
                   </label>
                 </div>
               ) : (
                 <Input
                   type={fieldTypeName === 'Email' ? 'email' : fieldTypeName === 'Phone' ? 'tel' : 'text'}
-                  placeholder={`Enter ${fieldLabel.toLowerCase()}`}
+                  placeholder=""
                   value={(formField.value as string) || ''}
                   onChange={formField.onChange}
-                  className="rounded-xl bg-background/80 border-border/60 hover:border-primary/40 transition-colors text-sm"
+                  className="h-9 rounded-lg text-xs"
                 />
               )}
             </FormControl>
             {field.description && (
-              <p className="text-xs text-muted-foreground">{field.description}</p>
+              <p className="text-[10px] text-muted-foreground leading-tight mt-1">{field.description}</p>
             )}
-            <FormMessage className="text-xs" />
+            <FormMessage className="text-[10px]" />
           </FormItem>
         )}
       />
@@ -1217,7 +1217,7 @@ export default function TicketCreationPremium() {
                               </FormLabel>
                               <FormControl>
                                 <Textarea
-                                  placeholder="Describe what happened in detail. Include when, where, and what the customer/staff experienced..."
+                                  placeholder="Describe the issue or request"
                                   className={cn(
                                     "min-h-32 rounded-xl text-sm resize-none",
                                     isFieldHighlighted("description") && "template-field-highlight"
@@ -1247,7 +1247,7 @@ export default function TicketCreationPremium() {
                                   </FormLabel>
                                   <FormControl>
                                     <Input
-                                      placeholder="e.g., 'Customer reported class cancellation issue'"
+                                      placeholder="Brief summary"
                                       className={cn(
                                         "rounded-xl text-sm",
                                         isFieldHighlighted("title") && "template-field-highlight"
@@ -1458,13 +1458,15 @@ export default function TicketCreationPremium() {
 
                         {/* Dynamic Custom Fields */}
                         {selectedCategoryId && dynamicFields.length > 0 && (
-                          <div className="pt-4 border-t border-border/50">
-                            <div className="flex items-center gap-2 mb-4">
-                              <Zap className="h-4 w-4 text-purple-600" />
-                              <h3 className="text-sm font-semibold">Category-Specific Fields</h3>
-                              {fieldsLoading && <Loader2 className="h-4 w-4 animate-spin text-purple-600" />}
+                          <div className="mt-4 p-4 rounded-lg bg-gradient-to-br from-purple-50/50 to-indigo-50/50 dark:from-purple-950/20 dark:to-indigo-950/20 border border-purple-200/30 dark:border-purple-800/30">
+                            <div className="flex items-center gap-2 mb-3">
+                              <div className="h-6 w-6 rounded-md bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center">
+                                <Zap className="h-3 w-3 text-white" />
+                              </div>
+                              <h4 className="text-xs font-semibold text-foreground/90">Additional Fields</h4>
+                              {fieldsLoading && <Loader2 className="h-3 w-3 animate-spin text-purple-600" />}
                             </div>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                               {dynamicFields.map(renderDynamicField)}
                             </div>
                           </div>
@@ -1674,7 +1676,7 @@ export default function TicketCreationPremium() {
                                     <FormLabel className="text-sm font-semibold">Client Name *</FormLabel>
                                     <FormControl>
                                       <Input
-                                        placeholder="Full name (e.g., John Smith)"
+                                        placeholder="Full name"
                                         className={cn(
                                           "rounded-xl text-sm h-11",
                                           isFieldHighlighted("customerName") && "template-field-highlight"
@@ -1695,7 +1697,7 @@ export default function TicketCreationPremium() {
                                     <FormControl>
                                       <Input
                                         type="email"
-                                        placeholder="customer@email.com"
+                                        placeholder="Email address"
                                         className={cn(
                                           "rounded-xl text-sm h-11",
                                           isFieldHighlighted("customerEmail") && "template-field-highlight"
@@ -1716,7 +1718,7 @@ export default function TicketCreationPremium() {
                                     <FormControl>
                                       <Input
                                         type="tel"
-                                        placeholder="+91 XXXXX XXXXX"
+                                        placeholder="Phone number"
                                         className={cn(
                                           "rounded-xl text-sm h-11",
                                           isFieldHighlighted("customerPhone") && "template-field-highlight"
@@ -1774,7 +1776,7 @@ export default function TicketCreationPremium() {
                                     <Select onValueChange={field.onChange} value={field.value}>
                                       <FormControl>
                                         <SelectTrigger className="rounded-xl bg-background text-sm h-11">
-                                          <SelectValue placeholder="How was the client feeling?" />
+                                          <SelectValue placeholder="Client mood" />
                                         </SelectTrigger>
                                       </FormControl>
                                       <SelectContent className="bg-popover border border-border z-50">
@@ -1859,7 +1861,7 @@ export default function TicketCreationPremium() {
                               onClassSelect={handleMomenceSessionSelect}
                               selectedClass={selectedMomenceSession}
                               label="Search Momence Classes"
-                              placeholder="Search: Class Name | Date | Time | Teacher"
+                              placeholder="Search for class"
                             />
 
                             <Separator />
@@ -1997,7 +1999,7 @@ export default function TicketCreationPremium() {
                                     <FormControl>
                                       <Input
                                         type="email"
-                                        placeholder="trainer@example.com"
+                                        placeholder="Email address"
                                         className={cn(
                                           "rounded-xl text-sm h-11",
                                           isFieldHighlighted("trainerEmail") && "template-field-highlight"
@@ -2018,7 +2020,7 @@ export default function TicketCreationPremium() {
                                     <FormControl>
                                       <Input
                                         type="tel"
-                                        placeholder="+91 XXXXX XXXXX"
+                                        placeholder="Phone number"
                                         className={cn(
                                           "rounded-xl text-sm h-11",
                                           isFieldHighlighted("trainerPhone") && "template-field-highlight"
@@ -2074,7 +2076,7 @@ export default function TicketCreationPremium() {
                               </FormLabel>
                               <FormControl>
                                 <Textarea
-                                  placeholder="Add any internal context, background info, or action items that staff should know..."
+                                  placeholder="Add internal notes or action items for staff"
                                   className="min-h-24 rounded-xl text-sm resize-none"
                                   {...field}
                                 />
@@ -2128,7 +2130,7 @@ export default function TicketCreationPremium() {
                                 <Select onValueChange={field.onChange} value={field.value}>
                                   <FormControl>
                                     <SelectTrigger className="rounded-xl bg-background text-sm h-11">
-                                      <SelectValue placeholder="How was this reported?" />
+                                      <SelectValue placeholder="Select source" />
                                     </SelectTrigger>
                                   </FormControl>
                                   <SelectContent className="bg-popover border border-border z-50">
