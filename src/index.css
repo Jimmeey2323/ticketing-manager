@@ -666,6 +666,57 @@
     }
   }
 
+  /* Critical ticket emphasis */
+  .critical-ticket-spotlight {
+    background: linear-gradient(135deg, rgba(254, 242, 242, 0.92) 0%, rgba(255, 228, 230, 0.92) 100%);
+    border: 1px solid rgba(220, 38, 38, 0.35);
+    box-shadow: 0 12px 30px rgba(220, 38, 38, 0.12);
+  }
+
+  .critical-ticket-row {
+    background: linear-gradient(90deg, rgba(239, 68, 68, 0.08) 0%, rgba(255, 255, 255, 0.02) 85%);
+    border-left: 3px solid rgba(220, 38, 38, 0.7);
+  }
+
+  .critical-ticket-card {
+    border-color: rgba(220, 38, 38, 0.45);
+    box-shadow:
+      0 0 0 1px rgba(220, 38, 38, 0.2),
+      0 12px 24px rgba(220, 38, 38, 0.12);
+    animation: pulseUrgent 1.7s ease-in-out infinite;
+  }
+
+  .critical-ticket-dot {
+    width: 0.5rem;
+    height: 0.5rem;
+    border-radius: 999px;
+    background: rgb(220 38 38);
+    box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.55);
+    animation: pulse-border 1.6s ease-in-out infinite;
+    display: inline-block;
+    flex-shrink: 0;
+  }
+
+  .critical-ticket-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    border-radius: 999px;
+    border: 1px solid rgba(220, 38, 38, 0.35);
+    background: rgba(255, 255, 255, 0.85);
+    color: rgb(153 27 27);
+    font-size: 0.7rem;
+    font-weight: 600;
+    line-height: 1;
+    padding: 0.4rem 0.65rem;
+    transition: all 200ms ease;
+  }
+
+  .critical-ticket-chip:hover {
+    background: rgba(254, 226, 226, 0.9);
+    border-color: rgba(220, 38, 38, 0.55);
+  }
+
   /* Float animation */
   .float {
     animation: float 3s ease-in-out infinite;
@@ -695,6 +746,20 @@
       transform: translateY(0);
     }
   }
+}
+
+/* Global preference classes */
+body.compact-mode main > div {
+  padding: 1rem !important;
+}
+
+body.reduce-motion *,
+body.reduce-motion *::before,
+body.reduce-motion *::after {
+  animation-duration: 1ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 1ms !important;
+  scroll-behavior: auto !important;
 }
 
 /* ============================================

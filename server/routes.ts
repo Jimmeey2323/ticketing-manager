@@ -6,6 +6,7 @@ import { setupAuth, isAuthenticated } from "./supabaseAuth";
 import { createClient } from "@supabase/supabase-js";
 import { insertTicketSchema, insertTicketCommentSchema, insertTeamSchema, insertStudioSchema, insertCategorySchema, insertNotificationSchema, updateTicketSchema, updateTeamSchema, updateStudioSchema } from "@shared/schema";
 import { storage } from "./storage";
+import { readAppConfig, writeAppConfig, type GmailRule, type WebhookRule } from "./appConfig";
 
 // Initialize Supabase client
 const supabaseUrl = process.env.SUPABASE_URL;
@@ -13,6 +14,40 @@ const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const supabase = supabaseUrl && supabaseServiceRoleKey
   ? createClient(supabaseUrl, supabaseServiceRoleKey)
   : null;
+
+function generateTicketNumber() {
+  const now = new Date();
+  const year = now.getFullYear().toString().slice(-2);
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  const random = Math.floor(Math.random() * 10000).toString().padStart(4, "0");
+  return `TKT-${year}${month}${day}-${random}`;
+}
+
+function inferGmailRule(subject: string, body: string, rules: GmailRule[]) {
+  const haystack = `${subject} ${body}`.toLowerCase();
+  return (
+    rules.find((rule) =>
+      rule.matchKeywords.some((keyword) => haystack.includes(keyword.toLowerCase())),
+    ) || null
+  );
+}
+
+async function resolveFallbackIds() {
+  if (!supabase) {
+    throw new Error("Supabase not configured");
+  }
+
+  const [{ data: studio }, { data: category }] = await Promise.all([
+    supabase.from("studios").select("id").eq("isActive", true).order("createdAt", { ascending: true }).limit(1).maybeSingle(),
+    supabase.from("categories").select("id").eq("isActive", true).order("createdAt", { ascending: true }).limit(1).maybeSingle(),
+  ]);
+
+  return {
+    fallbackStudioId: studio?.id || null,
+    fallbackCategoryId: category?.id || null,
+  };
+}
 
 export async function registerRoutes(app: Express): Promise<Server> {
   await setupAuth(app);
@@ -355,6 +390,89 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error updating ticket:", error);
       res.status(400).json({ message: "Failed to update ticket" });
+    }
+  });
+
+  // Owner-enforced status update endpoint
+  app.patch('/api/tickets/:id/status-owner', isAuthenticated, async (req: any, res) => {
+    try {
+      if (!supabase) return res.status(500).json({ message: 'Supabase not configured' });
+      const userId = req.user.claims.sub;
+      const { status } = req.body || {};
+
+      if (!status || typeof status !== 'string') {
+        return res.status(400).json({ message: 'Status is required' });
+      }
+
+      const { data: ticket, error: fetchError } = await supabase
+        .from('tickets')
+        .select('id, assignedToUserId')
+        .eq('id', req.params.id)
+        .maybeSingle();
+
+      if (fetchError) throw fetchError;
+      if (!ticket) return res.status(404).json({ message: 'Ticket not found' });
+      if (ticket.assignedToUserId !== userId) {
+        return res.status(403).json({ message: 'Only the ticket owner can update status' });
+      }
+
+      const { data: updated, error: updateError } = await supabase
+        .from('tickets')
+        .update({ status, updatedAt: new Date().toISOString() })
+        .eq('id', req.params.id)
+        .select('id, status')
+        .single();
+
+      if (updateError) throw updateError;
+      res.json(updated);
+    } catch (error) {
+      console.error('Error updating owner status:', error);
+      res.status(500).json({ message: 'Failed to update ticket status' });
+    }
+  });
+
+  // Owner-enforced closure endpoint
+  app.post('/api/tickets/:id/close-owner', isAuthenticated, async (req: any, res) => {
+    try {
+      if (!supabase) return res.status(500).json({ message: 'Supabase not configured' });
+      const userId = req.user.claims.sub;
+      const { resolutionSummary } = req.body || {};
+
+      if (!resolutionSummary || typeof resolutionSummary !== 'string') {
+        return res.status(400).json({ message: 'Resolution summary is required' });
+      }
+
+      const { data: ticket, error: fetchError } = await supabase
+        .from('tickets')
+        .select('id, assignedToUserId')
+        .eq('id', req.params.id)
+        .maybeSingle();
+
+      if (fetchError) throw fetchError;
+      if (!ticket) return res.status(404).json({ message: 'Ticket not found' });
+      if (ticket.assignedToUserId !== userId) {
+        return res.status(403).json({ message: 'Only the ticket owner can close this ticket' });
+      }
+
+      const now = new Date().toISOString();
+      const { data: updated, error: updateError } = await supabase
+        .from('tickets')
+        .update({
+          status: 'closed',
+          resolutionSummary,
+          closedAt: now,
+          resolvedAt: now,
+          updatedAt: now,
+        })
+        .eq('id', req.params.id)
+        .select('id, status, resolutionSummary, closedAt')
+        .single();
+
+      if (updateError) throw updateError;
+      res.json(updated);
+    } catch (error) {
+      console.error('Error closing owner ticket:', error);
+      res.status(500).json({ message: 'Failed to close ticket' });
     }
   });
 
@@ -777,6 +895,332 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Error reading field mapping:', error);
       res.status(500).json({ message: 'Failed to read field mapping' });
+    }
+  });
+
+  // Global application settings and integrations configuration
+  app.get("/api/settings/app-config", isAuthenticated, async (_req, res) => {
+    try {
+      let config = await readAppConfig();
+      if (supabase) {
+        const { data: configRule } = await supabase
+          .from("workflowRules")
+          .select("id, actions")
+          .eq("triggerEvent", "app_config")
+          .maybeSingle();
+
+        const supabaseConfig = (configRule?.actions as any)?.config;
+        if (supabaseConfig) {
+          config = {
+            ...config,
+            ...supabaseConfig,
+            ui: {
+              ...config.ui,
+              ...(supabaseConfig.ui || {}),
+            },
+            integrations: {
+              ...config.integrations,
+              ...(supabaseConfig.integrations || {}),
+            },
+          };
+        }
+      }
+      res.json(config);
+    } catch (error) {
+      console.error("Error loading app config:", error);
+      res.status(500).json({ message: "Failed to load app config" });
+    }
+  });
+
+  app.put("/api/settings/app-config", isAuthenticated, async (req, res) => {
+    try {
+      const current = await readAppConfig();
+      const nextConfig = {
+        ...current,
+        ...req.body,
+        ui: {
+          ...current.ui,
+          ...(req.body?.ui || {}),
+        },
+        integrations: {
+          ...current.integrations,
+          ...(req.body?.integrations || {}),
+          mailtrap: {
+            ...current.integrations.mailtrap,
+            ...(req.body?.integrations?.mailtrap || {}),
+          },
+          webhooks: {
+            ...current.integrations.webhooks,
+            ...(req.body?.integrations?.webhooks || {}),
+          },
+          gmail: {
+            ...current.integrations.gmail,
+            ...(req.body?.integrations?.gmail || {}),
+          },
+        },
+      };
+      await writeAppConfig(nextConfig);
+      if (supabase) {
+        const { data: existingRule } = await supabase
+          .from("workflowRules")
+          .select("id")
+          .eq("triggerEvent", "app_config")
+          .maybeSingle();
+
+        if (existingRule?.id) {
+          await supabase
+            .from("workflowRules")
+            .update({
+              actions: { config: nextConfig },
+              updatedAt: new Date().toISOString(),
+            })
+            .eq("id", existingRule.id);
+        } else {
+          await supabase.from("workflowRules").insert({
+            name: "Application Configuration",
+            description: "Global interface and integration settings",
+            triggerEvent: "app_config",
+            conditions: {},
+            actions: { config: nextConfig },
+            runOrder: 0,
+            isActive: true,
+          });
+        }
+      }
+      res.json(nextConfig);
+    } catch (error) {
+      console.error("Error saving app config:", error);
+      res.status(500).json({ message: "Failed to save app config" });
+    }
+  });
+
+  // Webhook rules management
+  app.get("/api/integrations/webhooks", isAuthenticated, async (_req, res) => {
+    try {
+      const config = await readAppConfig();
+      res.json(config.integrations.webhooks);
+    } catch (error) {
+      console.error("Error loading webhook config:", error);
+      res.status(500).json({ message: "Failed to load webhook config" });
+    }
+  });
+
+  app.post("/api/integrations/webhooks", isAuthenticated, async (req, res) => {
+    try {
+      const config = await readAppConfig();
+      const rule: WebhookRule = {
+        id: crypto.randomUUID(),
+        name: String(req.body?.name || "Automation webhook").trim(),
+        key: String(req.body?.key || crypto.randomUUID().replaceAll("-", "")),
+        isActive: req.body?.isActive !== false,
+        defaultStudioId: req.body?.defaultStudioId || null,
+        defaultCategoryId: req.body?.defaultCategoryId || null,
+        defaultPriority: req.body?.defaultPriority || "medium",
+        processAutomatically: req.body?.processAutomatically !== false,
+      };
+      config.integrations.webhooks.rules.push(rule);
+      await writeAppConfig(config);
+      res.status(201).json(rule);
+    } catch (error) {
+      console.error("Error creating webhook rule:", error);
+      res.status(500).json({ message: "Failed to create webhook rule" });
+    }
+  });
+
+  app.patch("/api/integrations/webhooks/:id", isAuthenticated, async (req, res) => {
+    try {
+      const config = await readAppConfig();
+      const index = config.integrations.webhooks.rules.findIndex((r) => r.id === req.params.id);
+      if (index < 0) {
+        return res.status(404).json({ message: "Webhook rule not found" });
+      }
+      const existing = config.integrations.webhooks.rules[index];
+      config.integrations.webhooks.rules[index] = {
+        ...existing,
+        ...req.body,
+      };
+      await writeAppConfig(config);
+      res.json(config.integrations.webhooks.rules[index]);
+    } catch (error) {
+      console.error("Error updating webhook rule:", error);
+      res.status(500).json({ message: "Failed to update webhook rule" });
+    }
+  });
+
+  app.delete("/api/integrations/webhooks/:id", isAuthenticated, async (req, res) => {
+    try {
+      const config = await readAppConfig();
+      config.integrations.webhooks.rules = config.integrations.webhooks.rules.filter(
+        (rule) => rule.id !== req.params.id,
+      );
+      await writeAppConfig(config);
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting webhook rule:", error);
+      res.status(500).json({ message: "Failed to delete webhook rule" });
+    }
+  });
+
+  // Public webhook endpoint for automatic ticket creation
+  app.post("/api/integrations/webhooks/:key", async (req, res) => {
+    try {
+      if (!supabase) {
+        return res.status(500).json({ message: "Supabase not configured" });
+      }
+
+      const config = await readAppConfig();
+      if (!config.integrations.webhooks.enabled) {
+        return res.status(403).json({ message: "Webhook ingestion is disabled" });
+      }
+
+      const rule = config.integrations.webhooks.rules.find(
+        (candidate) => candidate.key === req.params.key && candidate.isActive,
+      );
+
+      if (!rule) {
+        return res.status(404).json({ message: "Webhook rule not found or inactive" });
+      }
+      if (!rule.processAutomatically) {
+        return res.status(202).json({ message: "Webhook accepted but auto-processing is disabled for this rule" });
+      }
+
+      const payload = req.body || {};
+      const title = String(payload.title || payload.subject || "Inbound webhook ticket");
+      const description = String(
+        payload.description || payload.body || payload.message || "Ticket created by webhook integration.",
+      );
+      const customerEmail = payload.customerEmail || payload.email || null;
+      const customerName = payload.customerName || payload.name || null;
+
+      const { fallbackStudioId, fallbackCategoryId } = await resolveFallbackIds();
+      const studioId = rule.defaultStudioId || fallbackStudioId;
+      const categoryId = rule.defaultCategoryId || fallbackCategoryId;
+
+      if (!studioId || !categoryId) {
+        return res.status(400).json({
+          message: "Webhook rule is missing fallback mappings. Configure default studio and category.",
+        });
+      }
+
+      const ticketNumber = generateTicketNumber();
+      const dueAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+
+      const { data: createdTicket, error } = await supabase
+        .from("tickets")
+        .insert({
+          ticketNumber,
+          title,
+          description,
+          studioId,
+          categoryId,
+          priority: rule.defaultPriority || "medium",
+          status: "new",
+          source: "webhook",
+          customerEmail,
+          customerName,
+          dynamicFieldData: {
+            webhookPayload: payload,
+            webhookRuleId: rule.id,
+          },
+          slaDueAt: dueAt,
+        })
+        .select("id, ticketNumber, title")
+        .single();
+
+      if (error) throw error;
+
+      res.status(201).json({
+        message: "Ticket created from webhook",
+        ticket: createdTicket,
+      });
+    } catch (error) {
+      console.error("Error processing webhook ticket ingestion:", error);
+      res.status(500).json({ message: "Failed to process webhook payload" });
+    }
+  });
+
+  // Gmail automation helpers
+  app.post("/api/integrations/gmail/classify", isAuthenticated, async (req, res) => {
+    try {
+      const config = await readAppConfig();
+      const subject = String(req.body?.subject || "");
+      const body = String(req.body?.body || "");
+      const matchedRule = inferGmailRule(subject, body, config.integrations.gmail.rules);
+      res.json({
+        matched: !!matchedRule,
+        rule: matchedRule,
+      });
+    } catch (error) {
+      console.error("Error classifying Gmail message:", error);
+      res.status(500).json({ message: "Failed to classify Gmail message" });
+    }
+  });
+
+  app.post("/api/integrations/gmail/import", isAuthenticated, async (req: any, res) => {
+    try {
+      if (!supabase) {
+        return res.status(500).json({ message: "Supabase not configured" });
+      }
+      const config = await readAppConfig();
+      const messages = Array.isArray(req.body?.messages) ? req.body.messages : [];
+      if (messages.length === 0) {
+        return res.status(400).json({ message: "No Gmail messages provided" });
+      }
+
+      const { fallbackStudioId, fallbackCategoryId } = await resolveFallbackIds();
+      if (!fallbackStudioId || !fallbackCategoryId) {
+        return res.status(400).json({
+          message: "Missing default studio/category in database. Add baseline data first.",
+        });
+      }
+
+      const imported: any[] = [];
+      for (const msg of messages) {
+        const subject = String(msg.subject || "Imported Gmail ticket");
+        const body = String(msg.body || msg.snippet || "");
+        const matchedRule = inferGmailRule(subject, body, config.integrations.gmail.rules);
+        const shouldAutoProcess = matchedRule?.autoProcess ?? false;
+        const priority = matchedRule?.priority || "medium";
+        const categoryId = matchedRule?.categoryId || fallbackCategoryId;
+        const subcategoryId = matchedRule?.subcategoryId || null;
+        const ticketNumber = generateTicketNumber();
+
+        const { data: createdTicket, error } = await supabase
+          .from("tickets")
+          .insert({
+            ticketNumber,
+            title: subject,
+            description: body || "Imported from Gmail integration",
+            studioId: fallbackStudioId,
+            categoryId,
+            subcategoryId,
+            priority,
+            status: shouldAutoProcess ? "assigned" : "new",
+            source: "email",
+            customerEmail: msg.fromEmail || null,
+            customerName: msg.fromName || null,
+            dynamicFieldData: {
+              gmailImport: true,
+              gmailMessageId: msg.id || null,
+              matchedRuleId: matchedRule?.id || null,
+              autoProcessed: shouldAutoProcess,
+            },
+          })
+          .select("id, ticketNumber, title, status")
+          .single();
+
+        if (error) throw error;
+        imported.push(createdTicket);
+      }
+
+      res.json({
+        message: "Gmail messages imported into tickets",
+        importedCount: imported.length,
+        tickets: imported,
+      });
+    } catch (error) {
+      console.error("Error importing Gmail tickets:", error);
+      res.status(500).json({ message: "Failed to import Gmail messages" });
     }
   });
 

@@ -50,7 +50,7 @@ import { StatusBadge } from "@/components/status-badge";
 import { AssignAssociateModal } from "@/components/assign-associate-modal";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
-import { queryClient } from "@/lib/queryClient";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 import { supabase } from "@/integrations/supabase/client";
 import { STATUSES, PRIORITIES, STUDIOS, DEPARTMENTS } from "@/lib/constants";
 import type {
@@ -104,32 +104,31 @@ export default function TicketDetail() {
   });
 
   // Check if current user is the assigned owner or ticket reporter
-  const isTicketOwner = user?.id && ticket?.assignedToUserId === user.id;
+  const isTicketOwner = !!(user?.id && ticket?.assignedToUserId === user.id);
   const isTicketReporter = user?.id && ticket?.reportedByUserId === user.id;
   const canAssignAssociate = isTicketOwner || isTicketReporter || user?.role === 'admin' || user?.role === 'manager';
-  const canCloseTicket = isTicketOwner || user?.role === 'admin' || user?.role === 'manager';
+  const canCloseTicket = isTicketOwner;
+  const canUpdateStatus = isTicketOwner;
 
   // Close ticket mutation
   const closeTicketMutation = useMutation({
     mutationFn: async (data: { resolutionSummary: string }) => {
-      const { error } = await supabase
-        .from('tickets')
-        .update({
-          status: 'closed',
-          resolutionSummary: data.resolutionSummary,
-          closedAt: new Date().toISOString(),
-          resolvedAt: new Date().toISOString(),
-        })
-        .eq('id', ticketId);
-      if (error) throw error;
+      if (!isTicketOwner) {
+        throw new Error("Only the ticket owner can close this ticket");
+      }
+      await apiRequest("POST", `/api/tickets/${ticketId}/close-owner`, data);
     },
     onSuccess: () => {
       toast({ title: "Ticket closed successfully" });
       queryClient.invalidateQueries({ queryKey: ['ticket-detail', ticketId] });
       setResolutionSummary("");
     },
-    onError: () => {
-      toast({ title: "Failed to close ticket", variant: "destructive" });
+    onError: (error: any) => {
+      toast({
+        title: "Failed to close ticket",
+        description: error?.message || "Only the ticket owner can close this ticket",
+        variant: "destructive",
+      });
     },
   });
 
@@ -145,18 +144,21 @@ export default function TicketDetail() {
 
   const updateStatusMutation = useMutation({
     mutationFn: async (status: string) => {
-      const { error } = await supabase
-        .from('tickets')
-        .update({ status, updatedAt: new Date().toISOString() })
-        .eq('id', ticketId);
-      if (error) throw error;
+      if (!isTicketOwner) {
+        throw new Error("Only the ticket owner can update status");
+      }
+      await apiRequest("PATCH", `/api/tickets/${ticketId}/status-owner`, { status });
     },
     onSuccess: () => {
       toast({ title: "Status updated" });
       queryClient.invalidateQueries({ queryKey: ['ticket-detail', ticketId] });
     },
-    onError: () => {
-      toast({ title: "Failed to update status", variant: "destructive" });
+    onError: (error: any) => {
+      toast({
+        title: "Failed to update status",
+        description: error?.message || "Only the ticket owner can update status",
+        variant: "destructive",
+      });
     },
   });
 
@@ -577,7 +579,7 @@ export default function TicketDetail() {
                 <Select
                   value={ticket.status || "new"}
                   onValueChange={(value) => updateStatusMutation.mutate(value)}
-                  disabled={updateStatusMutation.isPending}
+                  disabled={updateStatusMutation.isPending || !canUpdateStatus}
                 >
                   <SelectTrigger
                     className="mt-1"
@@ -593,6 +595,11 @@ export default function TicketDetail() {
                     ))}
                   </SelectContent>
                 </Select>
+                {!canUpdateStatus && (
+                  <p className="text-xs text-muted-foreground mt-2">
+                    Only the assigned ticket owner can update status.
+                  </p>
+                )}
               </div>
 
               <div>

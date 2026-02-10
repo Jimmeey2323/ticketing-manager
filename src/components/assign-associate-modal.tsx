@@ -62,6 +62,9 @@ export function AssignAssociateModal({
   // Assign user mutation
   const assignMutation = useMutation({
     mutationFn: async (userId: string) => {
+      const previousAssignee = users.find((u) => u.id === currentAssigneeId);
+      const nextAssignee = users.find((u) => u.id === userId);
+
       const { error } = await supabase
         .from("tickets")
         .update({
@@ -71,9 +74,58 @@ export function AssignAssociateModal({
         .eq("id", ticketId);
 
       if (error) throw error;
+
+      const { data: ticketData } = await supabase
+        .from("tickets")
+        .select(`
+          id,
+          ticketNumber,
+          title,
+          priority,
+          slaDueAt,
+          category:categories(name),
+          studio:studios(name)
+        `)
+        .eq("id", ticketId)
+        .single();
+
+      if (nextAssignee?.email && ticketData) {
+        const deadline = ticketData.slaDueAt
+          ? new Date(ticketData.slaDueAt).toLocaleString()
+          : "As per configured SLA";
+
+        try {
+          await supabase.functions.invoke("send-ticket-notification", {
+            body: {
+              type: "assignment",
+              assignmentType: currentAssigneeId ? "reassignment" : "assignment",
+              previousAssigneeName: previousAssignee?.displayName || previousAssignee?.email || undefined,
+              ticketNumber: ticketData.ticketNumber,
+              ticketTitle: ticketData.title,
+              recipientEmail: nextAssignee.email,
+              recipientName:
+                nextAssignee.displayName ||
+                `${nextAssignee.firstName || ""} ${nextAssignee.lastName || ""}`.trim() ||
+                nextAssignee.email,
+              studioName: (ticketData.studio as any)?.name || "N/A",
+              priority: ticketData.priority || "medium",
+              category: (ticketData.category as any)?.name || "N/A",
+              deadline,
+              nextSteps: [
+                "Review ticket context and dynamic fields",
+                "Post first response and owner action plan",
+                "Update ticket status before the SLA deadline",
+              ],
+              ticketUrl: `${window.location.origin}/tickets/${ticketId}`,
+            },
+          });
+        } catch (notificationError) {
+          console.warn("Failed to send assignment notification:", notificationError);
+        }
+      }
     },
     onSuccess: () => {
-      toast({ title: "Associate assigned successfully" });
+      toast({ title: "Associate assigned and notified successfully" });
       queryClient.invalidateQueries({ queryKey: ["ticket-detail", ticketId] });
       queryClient.invalidateQueries({ queryKey: ["tickets"] });
       setOpen(false);

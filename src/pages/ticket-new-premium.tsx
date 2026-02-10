@@ -235,9 +235,9 @@ const ticketFormSchema = z.object({
 type TicketFormValues = z.infer<typeof ticketFormSchema>;
 
 const steps = [
-  { id: 1, name: "Template", description: "Choose template or start blank" },
-  { id: 2, name: "Details", description: "Complete ticket information" },
-  { id: 3, name: "Review", description: "Preview and submit" },
+  { id: 1, name: "Intake", description: "Pick template or blank flow" },
+  { id: 2, name: "Structured Form", description: "Capture issue, routing, and context" },
+  { id: 3, name: "Validation", description: "Review and submit to queue" },
 ];
 
 export default function TicketCreationPremium() {
@@ -753,10 +753,14 @@ export default function TicketCreationPremium() {
       if (data.assignedToUserId && data.assignedToUserId !== '_auto') {
         const assignee = users.find(u => u.id === data.assignedToUserId);
         if (assignee?.email) {
+          const deadline = ticket?.slaDueAt
+            ? new Date(ticket.slaDueAt).toLocaleString()
+            : "As per configured SLA";
           notificationPromises.push(
             supabase.functions.invoke('send-ticket-notification', {
               body: {
                 type: 'assignment',
+                assignmentType: 'assignment',
                 ticketNumber,
                 ticketTitle: data.title,
                 recipientEmail: assignee.email,
@@ -764,6 +768,12 @@ export default function TicketCreationPremium() {
                 studioName,
                 priority: data.priority,
                 category: category?.name,
+                deadline,
+                nextSteps: [
+                  "Review ticket details and customer context",
+                  "Post initial action plan and first response",
+                  "Complete status updates before SLA deadline",
+                ],
                 ticketUrl: `${window.location.origin}/tickets/${ticket.id}`,
               }
             }).catch(err => console.warn('Failed to send assignee notification:', err))
@@ -950,10 +960,10 @@ export default function TicketCreationPremium() {
             </Button>
             <div className="flex-1">
               <h1 className={cn("text-3xl font-bold mb-1", glassStyles.textGradients.primary)}>
-                Create New Ticket
+                Structured Ticket Intake
               </h1>
               <p className="text-sm text-muted-foreground">
-                Premium ticket creation with AI assistance
+                Modern guided flow with routing controls and context modules
               </p>
             </div>
             <Button
@@ -1057,7 +1067,7 @@ export default function TicketCreationPremium() {
                                   : "border-transparent hover:border-slate-300"
                               )}
                               onClick={() => {
-                                navigate(`/tickets/new-premium?template=${template.id}`);
+                                navigate(`/tickets/new?template=${template.id}`);
                               }}
                             >
                               <div className="flex items-start gap-3">
@@ -1138,6 +1148,42 @@ export default function TicketCreationPremium() {
                   exit={{ opacity: 0, x: -20 }}
                   className="space-y-4"
                 >
+                  <Card className={cn("rounded-2xl border-0", glassStyles.cards.primary)}>
+                    <CardHeader className="pb-3">
+                      <CardTitle className="text-base font-semibold flex items-center gap-2">
+                        <Zap className="h-4 w-4 text-indigo-600" />
+                        Ticket Workflow Map
+                      </CardTitle>
+                      <CardDescription className="text-xs">
+                        Follow this order for consistent and complete ticket intake.
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+                        {[
+                          { title: "Issue Summary", detail: "Description + AI title", icon: FileText },
+                          { title: "Routing", detail: "Team owner + SLA intent", icon: Users },
+                          { title: "Classification", detail: "Studio, category, priority", icon: Tag },
+                          { title: "Context Modules", detail: "Client / class / trainer", icon: Building },
+                        ].map((section, index) => (
+                          <div
+                            key={section.title}
+                            className="rounded-xl border border-border/50 bg-background/60 p-3"
+                          >
+                            <div className="flex items-center gap-2 mb-2">
+                              <span className="h-5 w-5 rounded-full bg-primary/15 text-primary text-[11px] font-semibold flex items-center justify-center">
+                                {index + 1}
+                              </span>
+                              <section.icon className="h-3.5 w-3.5 text-primary" />
+                            </div>
+                            <p className="text-xs font-semibold">{section.title}</p>
+                            <p className="text-[11px] text-muted-foreground mt-1">{section.detail}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+
                   {/* AI Description & Title */}
                   <Card className={cn("rounded-2xl border-0", glassStyles.cards.primary)}>
                     <CardHeader className="pb-3">

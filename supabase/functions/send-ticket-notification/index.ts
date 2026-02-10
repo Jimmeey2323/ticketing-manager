@@ -21,6 +21,10 @@ interface NotificationRequest {
   category?: string;
   escalationReason?: string;
   ticketUrl?: string;
+  deadline?: string;
+  nextSteps?: string[];
+  assignmentType?: "assignment" | "reassignment";
+  previousAssigneeName?: string;
 }
 
 const getEmailContent = (data: NotificationRequest) => {
@@ -29,8 +33,11 @@ const getEmailContent = (data: NotificationRequest) => {
   
   switch (data.type) {
     case "assignment":
+      const nextStepsHtml = (data.nextSteps || [])
+        .map((step) => `<li style="margin: 6px 0;">${step}</li>`)
+        .join("");
       return {
-        subject: `🎫 New Ticket Assigned: ${data.ticketNumber} - ${data.ticketTitle}`,
+        subject: `${data.assignmentType === "reassignment" ? "🔄 Ticket Reassigned" : "🎫 New Ticket Assigned"}: ${data.ticketNumber} - ${data.ticketTitle}`,
         html: `
           <!DOCTYPE html>
           <html>
@@ -49,6 +56,8 @@ const getEmailContent = (data: NotificationRequest) => {
               .priority-high { color: #ea580c; font-weight: bold; }
               .priority-medium { color: #ca8a04; }
               .priority-low { color: #16a34a; }
+              .next-steps { background: #f4f6ff; border: 1px solid #dbeafe; border-radius: 8px; padding: 12px 16px; margin-top: 14px; }
+              .next-steps h3 { margin: 0 0 6px 0; font-size: 14px; color: #1e3a8a; }
               .btn { display: inline-block; background: #6366f1; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; margin-top: 16px; }
               .footer { padding: 16px 24px; background: #f9fafb; text-align: center; color: #6b7280; font-size: 12px; }
             </style>
@@ -56,18 +65,21 @@ const getEmailContent = (data: NotificationRequest) => {
           <body>
             <div class="container">
               <div class="header">
-                <h1>🎫 New Ticket Assignment</h1>
+                <h1>${data.assignmentType === "reassignment" ? "🔄 Ticket Reassignment" : "🎫 New Ticket Assignment"}</h1>
               </div>
               <div class="content">
                 <p>Hi ${data.recipientName || 'there'},</p>
-                <p>A new ticket has been assigned to you and requires your attention.</p>
+                <p>${data.assignmentType === "reassignment" ? "A ticket has been reassigned to you and now requires your ownership." : "A new ticket has been assigned to you and requires your attention."}</p>
                 <div class="ticket-info">
                   <p><span class="label">Ticket Number:</span> ${data.ticketNumber}</p>
                   <p><span class="label">Title:</span> ${data.ticketTitle}</p>
                   <p><span class="label">Priority:</span> <span class="priority-${data.priority}">${data.priority?.toUpperCase()}</span></p>
                   <p><span class="label">Category:</span> ${data.category || 'N/A'}</p>
                   <p><span class="label">Studio:</span> ${data.studioName || 'N/A'}</p>
+                  ${data.previousAssigneeName ? `<p><span class="label">Previous Assignee:</span> ${data.previousAssigneeName}</p>` : ""}
+                  <p><span class="label">Deadline:</span> ${data.deadline || 'As per configured SLA'}</p>
                 </div>
+                ${nextStepsHtml ? `<div class="next-steps"><h3>Next Steps</h3><ul style="margin:0;padding-left:16px;">${nextStepsHtml}</ul></div>` : ""}
                 <a href="${ticketUrl}" class="btn">View Ticket</a>
               </div>
               <div class="footer">

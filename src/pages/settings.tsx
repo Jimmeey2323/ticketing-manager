@@ -1,37 +1,41 @@
-import { useState, useEffect } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { motion, AnimatePresence } from "framer-motion";
+import { useEffect, useMemo, useState } from "react";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import {
   Settings as SettingsIcon,
-  User,
-  Bell,
-  Shield,
   Palette,
-  Globe,
-  Mail,
+  Layers,
+  ListTree,
+  Workflow,
+  Users,
+  Plug,
   Save,
   Plus,
   Trash2,
-  Edit3,
-  Check,
-  X,
-  Building2,
-  Tag,
-  Users,
-  Loader2,
-  ChevronRight,
-  AlertCircle,
-  Database,
-  Layers,
+  RefreshCw,
+  Mail,
+  Webhook,
+  Upload,
+  CheckCircle2,
+  AlertTriangle,
 } from "lucide-react";
+import { useTheme } from "@/components/theme-provider";
+import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import { cn } from "@/lib/utils";
+import {
+  applyUiPreferences,
+  defaultUiPreferences,
+  loadUiPreferences,
+  saveUiPreferences,
+  type UiPreferences,
+} from "@/lib/ui-preferences";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
-import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Switch } from "@/components/ui/switch";
 import {
   Select,
   SelectContent,
@@ -39,960 +43,1729 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
+import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { useToast } from "@/hooks/use-toast";
-import { useAuth } from "@/hooks/useAuth";
-import { useTheme } from "@/components/theme-provider";
-import { CATEGORIES, STUDIOS, PRIORITIES, STATUSES, DEPARTMENTS } from "@/lib/constants";
-import { cn } from "@/lib/utils";
 
-interface SettingsState {
-  profile: {
-    firstName: string;
-    lastName: string;
-    email: string;
-    phone: string;
-  };
-  notifications: {
-    newAssignments: boolean;
-    ticketUpdates: boolean;
-    slaWarnings: boolean;
-    dailyDigest: boolean;
-    emailNotifications: boolean;
-    pushNotifications: boolean;
-  };
-  appearance: {
-    theme: "light" | "dark" | "system";
-    language: string;
+type Priority = "low" | "medium" | "high" | "critical";
+
+interface AppConfig {
+  ui: {
     compactMode: boolean;
     animationsEnabled: boolean;
   };
-  security: {
-    twoFactorEnabled: boolean;
-    sessionTimeout: number;
+  integrations: {
+    mailtrap: {
+      enabled: boolean;
+      fromEmail: string;
+      fromName: string;
+    };
+    webhooks: {
+      enabled: boolean;
+      rules: Array<{
+        id: string;
+        name: string;
+        key: string;
+        isActive: boolean;
+        defaultStudioId: string | null;
+        defaultCategoryId: string | null;
+        defaultPriority: Priority;
+        processAutomatically: boolean;
+      }>;
+    };
+    gmail: {
+      enabled: boolean;
+      connectedAccounts: Array<{
+        id: string;
+        email: string;
+        connectedAt: string;
+      }>;
+      rules: Array<{
+        id: string;
+        name: string;
+        matchKeywords: string[];
+        categoryId: string | null;
+        subcategoryId: string | null;
+        priority: Priority;
+        autoProcess: boolean;
+      }>;
+    };
   };
 }
 
-// SettingsService - Handle persistence
-const createSettingsService = (userId: string) => {
-  const storageKey = `user-settings-${userId}`;
-
-  return {
-    loadSettings: (defaults: SettingsState): SettingsState => {
-      try {
-        const stored = localStorage.getItem(storageKey);
-        if (stored) {
-          return { ...defaults, ...JSON.parse(stored) };
-        }
-      } catch (err) {
-        console.error("Failed to load settings from localStorage:", err);
-      }
-      return defaults;
+const DEFAULT_APP_CONFIG: AppConfig = {
+  ui: {
+    compactMode: false,
+    animationsEnabled: true,
+  },
+  integrations: {
+    mailtrap: {
+      enabled: true,
+      fromEmail: "info@physique57india.com",
+      fromName: "Physique 57 Support",
     },
-
-    saveSettings: (settings: SettingsState): void => {
-      try {
-        localStorage.setItem(storageKey, JSON.stringify(settings));
-      } catch (err) {
-        console.error("Failed to save settings to localStorage:", err);
-      }
+    webhooks: {
+      enabled: false,
+      rules: [],
     },
-
-    clearSettings: (): void => {
-      try {
-        localStorage.removeItem(storageKey);
-      } catch (err) {
-        console.error("Failed to clear settings:", err);
-      }
+    gmail: {
+      enabled: false,
+      connectedAccounts: [],
+      rules: [],
     },
-  };
+  },
 };
 
+const toCode = (value: string) =>
+  value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 24);
+
+function parseCsvKeywords(raw: string): string[] {
+  return raw
+    .split(",")
+    .map((part) => part.trim())
+    .filter(Boolean);
+}
+
 export default function Settings() {
-  const { toast } = useToast();
-  const { user } = useAuth();
   const { theme, setTheme } = useTheme();
-  const queryClient = useQueryClient();
-  const [activeTab, setActiveTab] = useState("profile");
+  const { toast } = useToast();
 
-  // Initialize default settings
-  const defaultSettings: SettingsState = {
-    profile: {
-      firstName: user?.firstName || "",
-      lastName: user?.lastName || "",
-      email: user?.email || "",
-      phone: "",
-    },
-    notifications: {
-      newAssignments: true,
-      ticketUpdates: true,
-      slaWarnings: true,
-      dailyDigest: false,
-      emailNotifications: true,
-      pushNotifications: false,
-    },
-    appearance: {
-      theme: (theme as "light" | "dark" | "system") || "system",
-      language: "en",
-      compactMode: false,
-      animationsEnabled: true,
-    },
-    security: {
-      twoFactorEnabled: false,
-      sessionTimeout: 30,
-    },
-  };
+  const [activeTab, setActiveTab] = useState("interface");
+  const [uiPreferences, setUiPreferences] = useState<UiPreferences>(loadUiPreferences());
+  const [hierarchyDraft, setHierarchyDraft] = useState<string>("{}");
 
-  const settingsService = createSettingsService(user?.id || "default");
-  const [localSettings, setLocalSettings] = useState<SettingsState>(
-    settingsService.loadSettings(defaultSettings)
-  );
-  const [hasChanges, setHasChanges] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
-
-  // Custom entities state for CRUD
-  const [customStudios, setCustomStudios] = useState(STUDIOS.map(s => ({ ...s, isCustom: false })));
-  const [customCategories, setCustomCategories] = useState(CATEGORIES.map(c => ({ ...c, isCustom: false })));
-  const [newStudioName, setNewStudioName] = useState("");
   const [newCategoryName, setNewCategoryName] = useState("");
-  const [editingStudio, setEditingStudio] = useState<string | null>(null);
-  const [editingCategory, setEditingCategory] = useState<string | null>(null);
+  const [newCategoryCode, setNewCategoryCode] = useState("");
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string>("all");
 
-  const handleSave = async (section: string) => {
-    setIsSaving(true);
+  const [newSubcategoryName, setNewSubcategoryName] = useState("");
+  const [newSubcategoryCode, setNewSubcategoryCode] = useState("");
 
-    try {
-      // Save to localStorage
-      settingsService.saveSettings(localSettings);
+  const [newFieldLabel, setNewFieldLabel] = useState("");
+  const [newFieldUniqueId, setNewFieldUniqueId] = useState("");
+  const [newFieldTypeId, setNewFieldTypeId] = useState("");
+  const [newFieldOptions, setNewFieldOptions] = useState("");
+  const [newFieldRequired, setNewFieldRequired] = useState(false);
+  const [newFieldSubcategoryId, setNewFieldSubcategoryId] = useState<string>("none");
 
-      // Apply theme immediately if appearance section
-      if (section === "appearance") {
-        setTheme(localSettings.appearance.theme);
+  const [newRuleName, setNewRuleName] = useState("");
+  const [newRulePriority, setNewRulePriority] = useState<Priority>("medium");
+  const [newRuleResolutionHours, setNewRuleResolutionHours] = useState(24);
+
+  const [newTeamName, setNewTeamName] = useState("");
+  const [newTeamDepartmentId, setNewTeamDepartmentId] = useState<string>("none");
+  const [newTeamLeadUserId, setNewTeamLeadUserId] = useState<string>("none");
+
+  const [newWebhookName, setNewWebhookName] = useState("");
+  const [newWebhookPriority, setNewWebhookPriority] = useState<Priority>("medium");
+  const [newWebhookCategoryId, setNewWebhookCategoryId] = useState<string>("none");
+  const [newWebhookStudioId, setNewWebhookStudioId] = useState<string>("none");
+  const [newWebhookAutoProcess, setNewWebhookAutoProcess] = useState(true);
+
+  const [newGmailAccountEmail, setNewGmailAccountEmail] = useState("");
+  const [newGmailRuleName, setNewGmailRuleName] = useState("");
+  const [newGmailRuleKeywords, setNewGmailRuleKeywords] = useState("");
+  const [newGmailRuleCategoryId, setNewGmailRuleCategoryId] = useState<string>("none");
+  const [newGmailRuleSubcategoryId, setNewGmailRuleSubcategoryId] = useState<string>("none");
+  const [newGmailRulePriority, setNewGmailRulePriority] = useState<Priority>("medium");
+  const [newGmailRuleAutoProcess, setNewGmailRuleAutoProcess] = useState(true);
+
+  const [gmailImportResult, setGmailImportResult] = useState<string>("");
+
+  const { data: categories = [], refetch: refetchCategories } = useQuery({
+    queryKey: ["settings-categories"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("categories")
+        .select("id, name, code, defaultPriority, slaHours, isActive")
+        .order("name");
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  const { data: subcategories = [], refetch: refetchSubcategories } = useQuery({
+    queryKey: ["settings-subcategories"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("subcategories")
+        .select("id, name, code, categoryId, defaultPriority, slaHours, isActive")
+        .order("name");
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  const { data: fieldTypes = [] } = useQuery({
+    queryKey: ["settings-field-types"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("fieldTypes")
+        .select("id, name, inputComponent")
+        .eq("isActive", true)
+        .order("name");
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  const { data: dynamicFields = [], refetch: refetchDynamicFields } = useQuery({
+    queryKey: ["settings-dynamic-fields", selectedCategoryId],
+    queryFn: async () => {
+      let query = supabase
+        .from("dynamicFields")
+        .select("id, label, uniqueId, categoryId, subcategoryId, fieldTypeId, isRequired, isActive, options, sortOrder")
+        .order("sortOrder", { ascending: true });
+      if (selectedCategoryId !== "all") {
+        query = query.eq("categoryId", selectedCategoryId);
       }
+      const { data, error } = await query;
+      if (error) throw error;
+      return data || [];
+    },
+  });
 
-      setHasChanges(false);
+  const { data: slaRules = [], refetch: refetchSlaRules } = useQuery({
+    queryKey: ["settings-sla-rules"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("slaRules")
+        .select("id, name, priority, firstResponseHours, resolutionHours, escalationHours, categoryId, subcategoryId, isActive")
+        .order("sortOrder", { ascending: true });
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  const { data: teams = [], refetch: refetchTeams } = useQuery({
+    queryKey: ["settings-teams"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("teams")
+        .select("id, name, departmentId, leadUserId, isActive")
+        .order("name");
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  const { data: users = [] } = useQuery({
+    queryKey: ["settings-users"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("users")
+        .select("id, displayName, firstName, lastName, email")
+        .eq("isActive", true)
+        .order("displayName");
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  const { data: departments = [] } = useQuery({
+    queryKey: ["settings-departments"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("departments")
+        .select("id, name, code")
+        .eq("isActive", true)
+        .order("name");
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  const { data: studios = [] } = useQuery({
+    queryKey: ["settings-studios"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("studios")
+        .select("id, name")
+        .eq("isActive", true)
+        .order("name");
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  const { data: hierarchyRule } = useQuery({
+    queryKey: ["settings-team-hierarchy"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("workflowRules")
+        .select("id, actions")
+        .eq("triggerEvent", "team_hierarchy")
+        .maybeSingle();
+      if (error) throw error;
+      return data || null;
+    },
+  });
+
+  const { data: appConfig = DEFAULT_APP_CONFIG, refetch: refetchAppConfig } = useQuery<AppConfig>({
+    queryKey: ["settings-app-config"],
+    queryFn: async () => {
+      const response = await apiRequest("GET", "/api/settings/app-config");
+      return (await response.json()) as AppConfig;
+    },
+  });
+
+  const filteredSubcategories = useMemo(() => {
+    if (selectedCategoryId === "all") return subcategories;
+    return subcategories.filter((sub: any) => sub.categoryId === selectedCategoryId);
+  }, [subcategories, selectedCategoryId]);
+
+  useEffect(() => {
+    setTheme(uiPreferences.theme);
+    applyUiPreferences(uiPreferences);
+  }, [uiPreferences, setTheme]);
+
+  useEffect(() => {
+    if (hierarchyRule?.actions) {
+      const hierarchy = (hierarchyRule.actions as any)?.hierarchy || {};
+      setHierarchyDraft(JSON.stringify(hierarchy, null, 2));
+    }
+  }, [hierarchyRule]);
+
+  const saveAppConfigMutation = useMutation({
+    mutationFn: async (nextConfig: AppConfig) => {
+      const response = await apiRequest("PUT", "/api/settings/app-config", nextConfig);
+      return (await response.json()) as AppConfig;
+    },
+    onSuccess: (savedConfig) => {
+      queryClient.setQueryData(["settings-app-config"], savedConfig);
+      toast({ title: "Application settings saved" });
+    },
+    onError: (error: any) => {
       toast({
-        title: "Settings saved",
-        description: `Your ${section} preferences have been updated.`,
-      });
-    } catch (error) {
-      toast({
-        title: "Error saving settings",
-        description: "Please try again.",
+        title: "Failed to save application settings",
+        description: error?.message || "Please retry",
         variant: "destructive",
       });
-    } finally {
-      setIsSaving(false);
+    },
+  });
+
+  const saveUi = () => {
+    saveUiPreferences(uiPreferences);
+    applyUiPreferences(uiPreferences);
+    setTheme(uiPreferences.theme);
+    toast({ title: "Interface preferences applied globally" });
+  };
+
+  const refreshAll = async () => {
+    await Promise.all([
+      refetchCategories(),
+      refetchSubcategories(),
+      refetchDynamicFields(),
+      refetchSlaRules(),
+      refetchTeams(),
+      refetchAppConfig(),
+    ]);
+    toast({ title: "Settings reloaded" });
+  };
+
+  const createCategory = async () => {
+    if (!newCategoryName.trim()) return;
+    const code = newCategoryCode.trim() || toCode(newCategoryName);
+    const { error } = await supabase.from("categories").insert({
+      name: newCategoryName.trim(),
+      code,
+      defaultPriority: "medium",
+      isActive: true,
+    });
+    if (error) {
+      toast({ title: "Failed to add category", description: error.message, variant: "destructive" });
+      return;
+    }
+    setNewCategoryName("");
+    setNewCategoryCode("");
+    await refetchCategories();
+    toast({ title: "Category added" });
+  };
+
+  const updateCategory = async (id: string, updates: Record<string, any>) => {
+    const { error } = await supabase.from("categories").update(updates).eq("id", id);
+    if (error) {
+      toast({ title: "Failed to update category", description: error.message, variant: "destructive" });
+      return;
+    }
+    await refetchCategories();
+    toast({ title: "Category updated" });
+  };
+
+  const deleteCategory = async (id: string) => {
+    const { error } = await supabase.from("categories").delete().eq("id", id);
+    if (error) {
+      toast({ title: "Failed to delete category", description: error.message, variant: "destructive" });
+      return;
+    }
+    await Promise.all([refetchCategories(), refetchSubcategories(), refetchDynamicFields()]);
+    toast({ title: "Category deleted" });
+  };
+
+  const createSubcategory = async () => {
+    if (selectedCategoryId === "all" || !newSubcategoryName.trim()) {
+      toast({
+        title: "Select a category first",
+        description: "Choose a category before adding subcategories",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const { error } = await supabase.from("subcategories").insert({
+      categoryId: selectedCategoryId,
+      name: newSubcategoryName.trim(),
+      code: newSubcategoryCode.trim() || toCode(newSubcategoryName),
+      defaultPriority: "medium",
+      isActive: true,
+    });
+    if (error) {
+      toast({ title: "Failed to add subcategory", description: error.message, variant: "destructive" });
+      return;
+    }
+    setNewSubcategoryName("");
+    setNewSubcategoryCode("");
+    await refetchSubcategories();
+    toast({ title: "Subcategory added" });
+  };
+
+  const updateSubcategory = async (id: string, updates: Record<string, any>) => {
+    const { error } = await supabase.from("subcategories").update(updates).eq("id", id);
+    if (error) {
+      toast({ title: "Failed to update subcategory", description: error.message, variant: "destructive" });
+      return;
+    }
+    await refetchSubcategories();
+    toast({ title: "Subcategory updated" });
+  };
+
+  const deleteSubcategory = async (id: string) => {
+    const { error } = await supabase.from("subcategories").delete().eq("id", id);
+    if (error) {
+      toast({ title: "Failed to delete subcategory", description: error.message, variant: "destructive" });
+      return;
+    }
+    await Promise.all([refetchSubcategories(), refetchDynamicFields()]);
+    toast({ title: "Subcategory deleted" });
+  };
+
+  const createField = async () => {
+    if (selectedCategoryId === "all") {
+      toast({ title: "Choose a category first", variant: "destructive" });
+      return;
+    }
+    if (!newFieldLabel.trim() || !newFieldTypeId) {
+      toast({ title: "Field label and type are required", variant: "destructive" });
+      return;
+    }
+
+    const { error } = await supabase.from("dynamicFields").insert({
+      label: newFieldLabel.trim(),
+      uniqueId: newFieldUniqueId.trim() || toCode(newFieldLabel),
+      categoryId: selectedCategoryId,
+      subcategoryId: newFieldSubcategoryId === "none" ? null : newFieldSubcategoryId,
+      fieldTypeId: newFieldTypeId,
+      options: parseCsvKeywords(newFieldOptions),
+      isRequired: newFieldRequired,
+      isActive: true,
+      sortOrder: dynamicFields.length + 1,
+    });
+
+    if (error) {
+      toast({ title: "Failed to create field", description: error.message, variant: "destructive" });
+      return;
+    }
+
+    setNewFieldLabel("");
+    setNewFieldUniqueId("");
+    setNewFieldTypeId("");
+    setNewFieldOptions("");
+    setNewFieldRequired(false);
+    setNewFieldSubcategoryId("none");
+    await refetchDynamicFields();
+    toast({ title: "Custom field added" });
+  };
+
+  const updateField = async (id: string, updates: Record<string, any>) => {
+    const { error } = await supabase.from("dynamicFields").update(updates).eq("id", id);
+    if (error) {
+      toast({ title: "Failed to update field", description: error.message, variant: "destructive" });
+      return;
+    }
+    await refetchDynamicFields();
+    toast({ title: "Field updated" });
+  };
+
+  const deleteField = async (id: string) => {
+    const { error } = await supabase.from("dynamicFields").delete().eq("id", id);
+    if (error) {
+      toast({ title: "Failed to delete field", description: error.message, variant: "destructive" });
+      return;
+    }
+    await refetchDynamicFields();
+    toast({ title: "Field deleted" });
+  };
+
+  const createSlaRule = async () => {
+    if (!newRuleName.trim()) {
+      toast({ title: "SLA rule name is required", variant: "destructive" });
+      return;
+    }
+    const { error } = await supabase.from("slaRules").insert({
+      name: newRuleName.trim(),
+      priority: newRulePriority,
+      resolutionHours: newRuleResolutionHours,
+      firstResponseHours: Math.max(1, Math.round(newRuleResolutionHours / 3)),
+      escalationHours: Math.max(1, Math.round(newRuleResolutionHours / 2)),
+      isActive: true,
+    });
+    if (error) {
+      toast({ title: "Failed to create SLA rule", description: error.message, variant: "destructive" });
+      return;
+    }
+    setNewRuleName("");
+    setNewRuleResolutionHours(24);
+    await refetchSlaRules();
+    toast({ title: "SLA rule created" });
+  };
+
+  const updateSlaRule = async (id: string, updates: Record<string, any>) => {
+    const { error } = await supabase.from("slaRules").update(updates).eq("id", id);
+    if (error) {
+      toast({ title: "Failed to update SLA rule", description: error.message, variant: "destructive" });
+      return;
+    }
+    await refetchSlaRules();
+    toast({ title: "SLA rule updated" });
+  };
+
+  const deleteSlaRule = async (id: string) => {
+    const { error } = await supabase.from("slaRules").delete().eq("id", id);
+    if (error) {
+      toast({ title: "Failed to delete SLA rule", description: error.message, variant: "destructive" });
+      return;
+    }
+    await refetchSlaRules();
+    toast({ title: "SLA rule deleted" });
+  };
+
+  const createTeam = async () => {
+    if (!newTeamName.trim()) {
+      toast({ title: "Team name is required", variant: "destructive" });
+      return;
+    }
+
+    const { error } = await supabase.from("teams").insert({
+      name: newTeamName.trim(),
+      departmentId: newTeamDepartmentId === "none" ? null : newTeamDepartmentId,
+      leadUserId: newTeamLeadUserId === "none" ? null : newTeamLeadUserId,
+      isActive: true,
+    });
+
+    if (error) {
+      toast({ title: "Failed to create team", description: error.message, variant: "destructive" });
+      return;
+    }
+
+    setNewTeamName("");
+    setNewTeamDepartmentId("none");
+    setNewTeamLeadUserId("none");
+    await refetchTeams();
+    toast({ title: "Team created" });
+  };
+
+  const updateTeam = async (id: string, updates: Record<string, any>) => {
+    const { error } = await supabase.from("teams").update(updates).eq("id", id);
+    if (error) {
+      toast({ title: "Failed to update team", description: error.message, variant: "destructive" });
+      return;
+    }
+    await refetchTeams();
+    toast({ title: "Team updated" });
+  };
+
+  const deleteTeam = async (id: string) => {
+    const { error } = await supabase.from("teams").delete().eq("id", id);
+    if (error) {
+      toast({ title: "Failed to delete team", description: error.message, variant: "destructive" });
+      return;
+    }
+    await refetchTeams();
+    toast({ title: "Team deleted" });
+  };
+
+  const saveHierarchy = async () => {
+    try {
+      const parsed = JSON.parse(hierarchyDraft);
+      if (hierarchyRule?.id) {
+        const { error } = await supabase
+          .from("workflowRules")
+          .update({ actions: { hierarchy: parsed } })
+          .eq("id", hierarchyRule.id);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase.from("workflowRules").insert({
+          name: "Team Hierarchy",
+          description: "Global team composition and escalation hierarchy",
+          triggerEvent: "team_hierarchy",
+          runOrder: 0,
+          isActive: true,
+          conditions: {},
+          actions: { hierarchy: parsed },
+        });
+        if (error) throw error;
+      }
+      toast({ title: "Team hierarchy saved" });
+      queryClient.invalidateQueries({ queryKey: ["settings-team-hierarchy"] });
+    } catch (error: any) {
+      toast({
+        title: "Invalid hierarchy JSON",
+        description: error?.message || "Please provide valid JSON",
+        variant: "destructive",
+      });
     }
   };
 
-  const handleDiscard = () => {
-    setLocalSettings(settingsService.loadSettings(defaultSettings));
-    setHasChanges(false);
-    toast({
-      title: "Changes discarded",
-      description: "Your unsaved changes have been reverted.",
-    });
+  const saveIntegrations = (nextConfig: AppConfig) => {
+    saveAppConfigMutation.mutate(nextConfig);
   };
 
-  const addStudio = () => {
-    if (!newStudioName.trim()) return;
+  const createWebhookRule = async () => {
+    if (!newWebhookName.trim()) {
+      toast({ title: "Webhook name is required", variant: "destructive" });
+      return;
+    }
 
-    const newStudio = {
-      id: `custom-${Date.now()}`,
-      name: newStudioName.trim(),
-      city: "Custom",
-      isCustom: true,
+    try {
+      await apiRequest("POST", "/api/integrations/webhooks", {
+        name: newWebhookName.trim(),
+        defaultPriority: newWebhookPriority,
+        defaultCategoryId: newWebhookCategoryId === "none" ? null : newWebhookCategoryId,
+        defaultStudioId: newWebhookStudioId === "none" ? null : newWebhookStudioId,
+        processAutomatically: newWebhookAutoProcess,
+      });
+      setNewWebhookName("");
+      setNewWebhookPriority("medium");
+      setNewWebhookCategoryId("none");
+      setNewWebhookStudioId("none");
+      setNewWebhookAutoProcess(true);
+      await refetchAppConfig();
+      toast({ title: "Webhook rule created" });
+    } catch (error: any) {
+      toast({
+        title: "Failed to create webhook rule",
+        description: error?.message || "Please retry",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const updateWebhookRule = async (id: string, updates: Record<string, any>) => {
+    try {
+      await apiRequest("PATCH", `/api/integrations/webhooks/${id}`, updates);
+      await refetchAppConfig();
+      toast({ title: "Webhook rule updated" });
+    } catch (error: any) {
+      toast({
+        title: "Failed to update webhook rule",
+        description: error?.message || "Please retry",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const deleteWebhookRule = async (id: string) => {
+    try {
+      await apiRequest("DELETE", `/api/integrations/webhooks/${id}`);
+      await refetchAppConfig();
+      toast({ title: "Webhook rule deleted" });
+    } catch (error: any) {
+      toast({
+        title: "Failed to delete webhook rule",
+        description: error?.message || "Please retry",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const addGmailAccount = () => {
+    const email = newGmailAccountEmail.trim();
+    if (!email) return;
+    const nextConfig: AppConfig = {
+      ...appConfig,
+      integrations: {
+        ...appConfig.integrations,
+        gmail: {
+          ...appConfig.integrations.gmail,
+          connectedAccounts: [
+            ...appConfig.integrations.gmail.connectedAccounts,
+            {
+              id: crypto.randomUUID(),
+              email,
+              connectedAt: new Date().toISOString(),
+            },
+          ],
+        },
+      },
+    };
+    setNewGmailAccountEmail("");
+    saveIntegrations(nextConfig);
+  };
+
+  const removeGmailAccount = (id: string) => {
+    const nextConfig: AppConfig = {
+      ...appConfig,
+      integrations: {
+        ...appConfig.integrations,
+        gmail: {
+          ...appConfig.integrations.gmail,
+          connectedAccounts: appConfig.integrations.gmail.connectedAccounts.filter((account) => account.id !== id),
+        },
+      },
+    };
+    saveIntegrations(nextConfig);
+  };
+
+  const addGmailRule = () => {
+    if (!newGmailRuleName.trim()) {
+      toast({ title: "Gmail automation rule name is required", variant: "destructive" });
+      return;
+    }
+    const nextConfig: AppConfig = {
+      ...appConfig,
+      integrations: {
+        ...appConfig.integrations,
+        gmail: {
+          ...appConfig.integrations.gmail,
+          rules: [
+            ...appConfig.integrations.gmail.rules,
+            {
+              id: crypto.randomUUID(),
+              name: newGmailRuleName.trim(),
+              matchKeywords: parseCsvKeywords(newGmailRuleKeywords),
+              categoryId: newGmailRuleCategoryId === "none" ? null : newGmailRuleCategoryId,
+              subcategoryId: newGmailRuleSubcategoryId === "none" ? null : newGmailRuleSubcategoryId,
+              priority: newGmailRulePriority,
+              autoProcess: newGmailRuleAutoProcess,
+            },
+          ],
+        },
+      },
     };
 
-    setCustomStudios(prev => [...prev, newStudio]);
-    setNewStudioName("");
-    setHasChanges(true);
-    toast({
-      title: "Studio added",
-      description: `${newStudio.name} has been added to the list.`,
-    });
+    setNewGmailRuleName("");
+    setNewGmailRuleKeywords("");
+    setNewGmailRuleCategoryId("none");
+    setNewGmailRuleSubcategoryId("none");
+    setNewGmailRulePriority("medium");
+    setNewGmailRuleAutoProcess(true);
+    saveIntegrations(nextConfig);
   };
 
-  const removeStudio = (id: string) => {
-    setCustomStudios(prev => prev.filter(s => s.id !== id));
-    setHasChanges(true);
-    toast({
-      title: "Studio removed",
-      description: "The studio has been removed from the list.",
-    });
-  };
-
-  const addCategory = () => {
-    if (!newCategoryName.trim()) return;
-
-    const newCategory = {
-      id: `custom-${Date.now()}`,
-      code: newCategoryName.substring(0, 3).toUpperCase(),
-      name: newCategoryName.trim(),
-      icon: "Tag",
-      defaultTeam: "Operations",
-      defaultPriority: "medium",
-      subcategories: [],
-      isCustom: true,
+  const deleteGmailRule = (id: string) => {
+    const nextConfig: AppConfig = {
+      ...appConfig,
+      integrations: {
+        ...appConfig.integrations,
+        gmail: {
+          ...appConfig.integrations.gmail,
+          rules: appConfig.integrations.gmail.rules.filter((rule) => rule.id !== id),
+        },
+      },
     };
-
-    setCustomCategories(prev => [...prev, newCategory]);
-    setNewCategoryName("");
-    setHasChanges(true);
-    toast({
-      title: "Category added",
-      description: `${newCategory.name} has been added to the list.`,
-    });
+    saveIntegrations(nextConfig);
   };
 
-  const removeCategory = (id: string) => {
-    setCustomCategories(prev => prev.filter(c => c.id !== id));
-    setHasChanges(true);
-    toast({
-      title: "Category removed",
-      description: "The category has been removed from the list.",
-    });
+  const handleGmailImportFile = async (file: File | null) => {
+    if (!file) return;
+    try {
+      const text = await file.text();
+      const parsed = JSON.parse(text);
+      if (!Array.isArray(parsed)) {
+        throw new Error("File must contain an array of message objects");
+      }
+      const response = await apiRequest("POST", "/api/integrations/gmail/import", {
+        messages: parsed,
+      });
+      const payload = await response.json();
+      setGmailImportResult(`Imported ${payload.importedCount || 0} messages into tickets.`);
+      toast({ title: "Gmail historical import completed" });
+    } catch (error: any) {
+      setGmailImportResult("");
+      toast({
+        title: "Failed to import Gmail history",
+        description: error?.message || "Invalid file format",
+        variant: "destructive",
+      });
+    }
   };
 
   return (
-    <div className="space-y-6 max-w-5xl mx-auto">
-      {/* Unsaved Changes Alert */}
-      <AnimatePresence>
-        {hasChanges && (
-          <motion.div
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-          >
-            <Alert className="border-amber-200 bg-amber-50 dark:border-amber-900 dark:bg-amber-950/20">
-              <AlertCircle className="h-4 w-4 text-amber-600" />
-              <AlertDescription className="text-amber-900 dark:text-amber-100">
-                You have unsaved changes.{" "}
-                <div className="flex gap-2 mt-2">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={handleDiscard}
-                    className="h-8"
-                  >
-                    <X className="h-3 w-3 mr-1" />
-                    Discard
-                  </Button>
-                  <Button
-                    size="sm"
-                    onClick={() => handleSave("general")}
-                    disabled={isSaving}
-                    className="h-8"
-                  >
-                    {isSaving ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <Save className="h-3 w-3 mr-1" />}
-                    Save Changes
-                  </Button>
-                </div>
-              </AlertDescription>
-            </Alert>
-          </motion.div>
-        )}
-      </AnimatePresence>
+    <div className="space-y-6 max-w-7xl mx-auto pb-10">
+      <div className="flex items-start justify-between gap-4 flex-wrap">
+        <div className="flex items-center gap-3">
+          <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-primary to-secondary flex items-center justify-center">
+            <SettingsIcon className="h-6 w-6 text-white" />
+          </div>
+          <div>
+            <h1 className="text-2xl font-bold">Global Settings Console</h1>
+            <p className="text-sm text-muted-foreground">
+              Configure platform-wide taxonomy, workflow rules, integrations, and UI behavior
+            </p>
+          </div>
+        </div>
+        <Button variant="outline" onClick={refreshAll} className="rounded-xl">
+          <RefreshCw className="h-4 w-4 mr-2" />
+          Refresh Data
+        </Button>
+      </div>
 
-      {/* Header */}
-      <motion.div
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="flex items-center gap-3"
-      >
-        <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-primary to-secondary flex items-center justify-center">
-          <SettingsIcon className="h-6 w-6 text-primary-foreground" />
-        </div>
-        <div>
-          <h1 className="text-2xl font-bold gradient-text-accent">Settings</h1>
-          <p className="text-sm text-muted-foreground">
-            Manage your account, preferences, and application configuration
-          </p>
-        </div>
-      </motion.div>
+      <Alert className="border-primary/30 bg-primary/5">
+        <CheckCircle2 className="h-4 w-4 text-primary" />
+        <AlertDescription>
+          Changes made here are applied globally and synced to Supabase-backed entities.
+        </AlertDescription>
+      </Alert>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="grid w-full grid-cols-2 lg:grid-cols-6 gap-1">
-          <TabsTrigger value="profile" className="gap-2">
-            <User className="h-4 w-4" />
-            <span className="hidden sm:inline">Profile</span>
-          </TabsTrigger>
-          <TabsTrigger value="notifications" className="gap-2">
-            <Bell className="h-4 w-4" />
-            <span className="hidden sm:inline">Notifications</span>
-          </TabsTrigger>
-          <TabsTrigger value="appearance" className="gap-2">
-            <Palette className="h-4 w-4" />
-            <span className="hidden sm:inline">Appearance</span>
-          </TabsTrigger>
-          <TabsTrigger value="security" className="gap-2">
-            <Shield className="h-4 w-4" />
-            <span className="hidden sm:inline">Security</span>
-          </TabsTrigger>
-          <TabsTrigger value="data" className="gap-2">
-            <Database className="h-4 w-4" />
-            <span className="hidden sm:inline">Data</span>
-          </TabsTrigger>
-          <TabsTrigger value="system" className="gap-2">
-            <Layers className="h-4 w-4" />
-            <span className="hidden sm:inline">System</span>
-          </TabsTrigger>
+        <TabsList className="grid w-full grid-cols-2 md:grid-cols-6 gap-2 h-auto p-1">
+          <TabsTrigger value="interface" className="gap-2"><Palette className="h-4 w-4" />Interface</TabsTrigger>
+          <TabsTrigger value="taxonomy" className="gap-2"><Layers className="h-4 w-4" />Categories</TabsTrigger>
+          <TabsTrigger value="fields" className="gap-2"><ListTree className="h-4 w-4" />Custom Fields</TabsTrigger>
+          <TabsTrigger value="sla" className="gap-2"><Workflow className="h-4 w-4" />SLA Rules</TabsTrigger>
+          <TabsTrigger value="teams" className="gap-2"><Users className="h-4 w-4" />Teams</TabsTrigger>
+          <TabsTrigger value="integrations" className="gap-2"><Plug className="h-4 w-4" />Integrations</TabsTrigger>
         </TabsList>
 
-        {/* Profile Tab */}
-        <TabsContent value="profile" className="space-y-6">
+        <TabsContent value="interface" className="space-y-6">
           <Card className="glass-card">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <User className="h-5 w-5 text-primary" />
-                Profile Information
-              </CardTitle>
+              <CardTitle>Global Interface Preferences</CardTitle>
               <CardDescription>
-                Update your personal information and contact details
+                These settings are applied across the entire application interface.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="firstName">First Name</Label>
-                  <Input
-                    id="firstName"
-                    value={localSettings.profile.firstName}
-                    onChange={(e) => {
-                      setLocalSettings(prev => ({
-                        ...prev,
-                        profile: { ...prev.profile, firstName: e.target.value }
-                      }));
-                      setHasChanges(true);
-                    }}
-                    placeholder="Enter first name"
-                    className="rounded-xl"
+                  <Label>Theme</Label>
+                  <Select
+                    value={uiPreferences.theme}
+                    onValueChange={(value: any) => setUiPreferences((prev) => ({ ...prev, theme: value }))}
+                  >
+                    <SelectTrigger className="rounded-xl">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="light">Light</SelectItem>
+                      <SelectItem value="dark">Dark</SelectItem>
+                      <SelectItem value="system">System</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="flex items-center justify-between rounded-xl border p-4">
+                  <div>
+                    <p className="text-sm font-medium">Compact Mode</p>
+                    <p className="text-xs text-muted-foreground">Reduce spacing in layout blocks</p>
+                  </div>
+                  <Switch
+                    checked={uiPreferences.compactMode}
+                    onCheckedChange={(checked) =>
+                      setUiPreferences((prev) => ({ ...prev, compactMode: checked }))
+                    }
                   />
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="lastName">Last Name</Label>
-                  <Input
-                    id="lastName"
-                    value={localSettings.profile.lastName}
-                    onChange={(e) => {
-                      setLocalSettings(prev => ({
-                        ...prev,
-                        profile: { ...prev.profile, lastName: e.target.value }
-                      }));
-                      setHasChanges(true);
-                    }}
-                    placeholder="Enter last name"
-                    className="rounded-xl"
+
+                <div className="flex items-center justify-between rounded-xl border p-4">
+                  <div>
+                    <p className="text-sm font-medium">Enable Animations</p>
+                    <p className="text-xs text-muted-foreground">Controls motion system-wide</p>
+                  </div>
+                  <Switch
+                    checked={uiPreferences.animationsEnabled}
+                    onCheckedChange={(checked) =>
+                      setUiPreferences((prev) => ({ ...prev, animationsEnabled: checked }))
+                    }
                   />
                 </div>
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  value={localSettings.profile.email}
-                  onChange={(e) => {
-                    setLocalSettings(prev => ({
-                      ...prev,
-                      profile: { ...prev.profile, email: e.target.value }
-                    }));
-                    setHasChanges(true);
+
+              <div className="flex justify-end gap-3">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setUiPreferences(defaultUiPreferences);
+                    saveUiPreferences(defaultUiPreferences);
+                    applyUiPreferences(defaultUiPreferences);
+                    setTheme(defaultUiPreferences.theme);
                   }}
-                  placeholder="Enter email"
-                  className="rounded-xl"
+                >
+                  Reset
+                </Button>
+                <Button onClick={saveUi} className="rounded-xl">
+                  <Save className="h-4 w-4 mr-2" />
+                  Apply Globally
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="glass-card">
+            <CardHeader>
+              <CardTitle>Settings Backend Sync</CardTitle>
+              <CardDescription>
+                Persist UI defaults in backend app config as a global baseline.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center justify-between rounded-xl border p-4">
+                <div>
+                  <p className="text-sm font-medium">Default Compact Mode</p>
+                  <p className="text-xs text-muted-foreground">Used for global defaults and onboarding</p>
+                </div>
+                <Switch
+                  checked={appConfig.ui.compactMode}
+                  onCheckedChange={(checked) =>
+                    saveIntegrations({
+                      ...appConfig,
+                      ui: { ...appConfig.ui, compactMode: checked },
+                    })
+                  }
                 />
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="phone">Phone Number</Label>
-                <Input
-                  id="phone"
-                  type="tel"
-                  value={localSettings.profile.phone}
-                  onChange={(e) => {
-                    setLocalSettings(prev => ({
-                      ...prev,
-                      profile: { ...prev.profile, phone: e.target.value }
-                    }));
-                    setHasChanges(true);
-                  }}
-                  placeholder="Enter phone number"
-                  className="rounded-xl"
+              <div className="flex items-center justify-between rounded-xl border p-4">
+                <div>
+                  <p className="text-sm font-medium">Default Animations Enabled</p>
+                  <p className="text-xs text-muted-foreground">Global animation baseline for the workspace</p>
+                </div>
+                <Switch
+                  checked={appConfig.ui.animationsEnabled}
+                  onCheckedChange={(checked) =>
+                    saveIntegrations({
+                      ...appConfig,
+                      ui: { ...appConfig.ui, animationsEnabled: checked },
+                    })
+                  }
                 />
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Role</Label>
-                  <Input value={user?.role || "Staff"} disabled className="rounded-xl bg-muted" />
-                </div>
-                <div className="space-y-2">
-                  <Label>Team</Label>
-                  <Input value={user?.teamId || "Not assigned"} disabled className="rounded-xl bg-muted" />
-                </div>
-              </div>
-              <div className="flex justify-end">
-                <Button onClick={() => handleSave("profile")} disabled={isSaving} className="rounded-xl">
-                  {isSaving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
-                  Save Changes
-                </Button>
-              </div>
             </CardContent>
           </Card>
         </TabsContent>
 
-        {/* Notifications Tab */}
-        <TabsContent value="notifications" className="space-y-6">
+        <TabsContent value="taxonomy" className="space-y-6">
           <Card className="glass-card">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Bell className="h-5 w-5 text-primary" />
-                Notification Preferences
-              </CardTitle>
+              <CardTitle>Category Management</CardTitle>
               <CardDescription>
-                Configure when and how you receive notifications
+                Add, update, and remove categories that drive routing and classification.
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-6">
-              {[
-                { key: "newAssignments", label: "New ticket assignments", description: "Get notified when a ticket is assigned to you" },
-                { key: "ticketUpdates", label: "Ticket updates", description: "Get notified when tickets you're involved in are updated" },
-                { key: "slaWarnings", label: "SLA warnings", description: "Get notified when SLA deadlines are approaching" },
-                { key: "dailyDigest", label: "Daily digest", description: "Receive a daily summary of ticket activity" },
-                { key: "emailNotifications", label: "Email notifications", description: "Receive notifications via email" },
-                { key: "pushNotifications", label: "Push notifications", description: "Receive browser push notifications" },
-              ].map((item, index) => (
-                <motion.div
-                  key={item.key}
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: index * 0.05 }}
-                  className="flex items-center justify-between py-3 border-b border-border/50 last:border-0"
-                >
-                  <div className="space-y-0.5">
-                    <Label className="font-medium">{item.label}</Label>
-                    <p className="text-sm text-muted-foreground">{item.description}</p>
-                  </div>
-                  <Switch
-                    checked={localSettings.notifications[item.key as keyof typeof localSettings.notifications]}
-                    onCheckedChange={(checked) => {
-                      setLocalSettings(prev => ({
-                        ...prev,
-                        notifications: { ...prev.notifications, [item.key]: checked }
-                      }));
-                      setHasChanges(true);
-                    }}
-                  />
-                </motion.div>
-              ))}
-              <div className="flex justify-end pt-4">
-                <Button onClick={() => handleSave("notifications")} disabled={isSaving} className="rounded-xl">
-                  {isSaving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
-                  Save Preferences
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* Appearance Tab */}
-        <TabsContent value="appearance" className="space-y-6">
-          <Card className="glass-card">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Palette className="h-5 w-5 text-primary" />
-                Appearance Settings
-              </CardTitle>
-              <CardDescription>
-                Customize how the application looks and feels
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="space-y-3">
-                <Label>Color Theme</Label>
-                <div className="grid grid-cols-3 gap-3">
-                  {[
-                    { value: "light", label: "Light", icon: "☀️" },
-                    { value: "dark", label: "Dark", icon: "🌙" },
-                    { value: "system", label: "System", icon: "💻" },
-                  ].map((option) => (
-                    <button
-                      key={option.value}
-                      onClick={() => {
-                        setLocalSettings(prev => ({
-                          ...prev,
-                          appearance: { ...prev.appearance, theme: option.value as "light" | "dark" | "system" }
-                        }));
-                        setHasChanges(true);
-                      }}
-                      className={cn(
-                        "flex flex-col items-center p-4 rounded-xl border-2 transition-all",
-                        localSettings.appearance.theme === option.value
-                          ? "border-primary bg-primary/10"
-                          : "border-border hover:border-primary/30"
-                      )}
-                    >
-                      <span className="text-2xl mb-2">{option.icon}</span>
-                      <span className="text-sm font-medium">{option.label}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <Separator />
-
-              <div className="space-y-3">
-                <Label>Language</Label>
-                <Select
-                  value={localSettings.appearance.language}
-                  onValueChange={(value) => {
-                    setLocalSettings(prev => ({
-                      ...prev,
-                      appearance: { ...prev.appearance, language: value }
-                    }));
-                    setHasChanges(true);
-                  }}
-                >
-                  <SelectTrigger className="w-full md:w-64 rounded-xl">
-                    <SelectValue placeholder="Select language" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="en">English</SelectItem>
-                    <SelectItem value="hi">हिंदी (Hindi)</SelectItem>
-                    <SelectItem value="mr">मराठी (Marathi)</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <Separator />
-
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <div className="space-y-0.5">
-                    <Label>Compact Mode</Label>
-                    <p className="text-sm text-muted-foreground">Use a more compact interface layout</p>
-                  </div>
-                  <Switch
-                    checked={localSettings.appearance.compactMode}
-                    onCheckedChange={(checked) => {
-                      setLocalSettings(prev => ({
-                        ...prev,
-                        appearance: { ...prev.appearance, compactMode: checked }
-                      }));
-                      setHasChanges(true);
-                    }}
-                  />
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <div className="space-y-0.5">
-                    <Label>Animations</Label>
-                    <p className="text-sm text-muted-foreground">Enable smooth animations and transitions</p>
-                  </div>
-                  <Switch
-                    checked={localSettings.appearance.animationsEnabled}
-                    onCheckedChange={(checked) => {
-                      setLocalSettings(prev => ({
-                        ...prev,
-                        appearance: { ...prev.appearance, animationsEnabled: checked }
-                      }));
-                      setHasChanges(true);
-                    }}
-                  />
-                </div>
-              </div>
-
-              <div className="flex justify-end pt-4">
-                <Button onClick={() => handleSave("appearance")} disabled={isSaving} className="rounded-xl">
-                  {isSaving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
-                  Save Preferences
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* Security Tab */}
-        <TabsContent value="security" className="space-y-6">
-          <Card className="glass-card">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Shield className="h-5 w-5 text-primary" />
-                Security Settings
-              </CardTitle>
-              <CardDescription>
-                Manage your security preferences and sessions
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="flex items-center justify-between py-3">
-                <div className="space-y-0.5">
-                  <Label>Two-factor authentication</Label>
-                  <p className="text-sm text-muted-foreground">
-                    Add an extra layer of security to your account
-                  </p>
-                </div>
-                <Button variant="outline" className="rounded-xl">
-                  {localSettings.security.twoFactorEnabled ? "Manage" : "Enable"}
-                </Button>
-              </div>
-
-              <Separator />
-
-              <div className="space-y-3">
-                <Label>Session Timeout</Label>
-                <Select
-                  value={localSettings.security.sessionTimeout.toString()}
-                  onValueChange={(value) => {
-                    setLocalSettings(prev => ({
-                      ...prev,
-                      security: { ...prev.security, sessionTimeout: parseInt(value) }
-                    }));
-                    setHasChanges(true);
-                  }}
-                >
-                  <SelectTrigger className="w-full md:w-64 rounded-xl">
-                    <SelectValue placeholder="Select timeout" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="15">15 minutes</SelectItem>
-                    <SelectItem value="30">30 minutes</SelectItem>
-                    <SelectItem value="60">1 hour</SelectItem>
-                    <SelectItem value="120">2 hours</SelectItem>
-                    <SelectItem value="480">8 hours</SelectItem>
-                  </SelectContent>
-                </Select>
-                <p className="text-xs text-muted-foreground">
-                  Automatically sign out after this period of inactivity
-                </p>
-              </div>
-
-              <Separator />
-
-              <div className="space-y-3">
-                <Label>Active Sessions</Label>
-                <Card className="bg-muted/30">
-                  <CardContent className="py-4">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center">
-                          <Globe className="h-5 w-5 text-primary" />
-                        </div>
-                        <div>
-                          <p className="text-sm font-medium">Current Session</p>
-                          <p className="text-xs text-muted-foreground">Browser • Active now</p>
-                        </div>
-                      </div>
-                      <Badge variant="secondary" className="rounded-lg">Active</Badge>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-
-              <Separator />
-
-              <div className="space-y-3">
-                <Label className="text-destructive">Danger Zone</Label>
-                <p className="text-sm text-muted-foreground">
-                  Irreversible actions that affect your account
-                </p>
-                <div className="flex gap-3">
-                  <Button variant="destructive" className="rounded-xl">
-                    Sign Out All Devices
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+                <Input placeholder="New category" value={newCategoryName} onChange={(e) => setNewCategoryName(e.target.value)} />
+                <Input placeholder="Code (optional)" value={newCategoryCode} onChange={(e) => setNewCategoryCode(e.target.value)} />
+                <div className="md:col-span-2">
+                  <Button onClick={createCategory} className="w-full rounded-xl">
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add Category
                   </Button>
                 </div>
               </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
 
-        {/* Data Management Tab */}
-        <TabsContent value="data" className="space-y-6">
-          {/* Studios Management */}
-          <Card className="glass-card">
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle className="flex items-center gap-2">
-                    <Building2 className="h-5 w-5 text-primary" />
-                    Studios
-                  </CardTitle>
-                  <CardDescription>Manage studio locations</CardDescription>
-                </div>
-                <Dialog>
-                  <DialogTrigger asChild>
-                    <Button size="sm" className="rounded-xl">
-                      <Plus className="h-4 w-4 mr-2" />
-                      Add Studio
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent>
-                    <DialogHeader>
-                      <DialogTitle>Add New Studio</DialogTitle>
-                      <DialogDescription>Add a new studio location to the system.</DialogDescription>
-                    </DialogHeader>
-                    <div className="space-y-4 py-4">
-                      <div className="space-y-2">
-                        <Label>Studio Name</Label>
-                        <Input
-                          value={newStudioName}
-                          onChange={(e) => setNewStudioName(e.target.value)}
-                          placeholder="Enter studio name"
-                          className="rounded-xl"
+              <div className="space-y-3">
+                {categories.map((category: any) => (
+                  <div key={category.id} className="rounded-xl border p-3">
+                    <div className="grid grid-cols-1 md:grid-cols-6 gap-3 items-center">
+                      <Input
+                        defaultValue={category.name}
+                        onBlur={(e) => {
+                          if (e.target.value !== category.name) {
+                            updateCategory(category.id, { name: e.target.value.trim() });
+                          }
+                        }}
+                      />
+                      <Input
+                        defaultValue={category.code}
+                        onBlur={(e) => {
+                          if (e.target.value !== category.code) {
+                            updateCategory(category.id, { code: e.target.value.trim() || toCode(category.name) });
+                          }
+                        }}
+                      />
+                      <Select
+                        defaultValue={category.defaultPriority || "medium"}
+                        onValueChange={(value) => updateCategory(category.id, { defaultPriority: value })}
+                      >
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="low">low</SelectItem>
+                          <SelectItem value="medium">medium</SelectItem>
+                          <SelectItem value="high">high</SelectItem>
+                          <SelectItem value="critical">critical</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <Input
+                        type="number"
+                        defaultValue={category.slaHours || 24}
+                        onBlur={(e) => updateCategory(category.id, { slaHours: Number(e.target.value || 24) })}
+                      />
+                      <div className="flex items-center gap-2">
+                        <Switch
+                          checked={category.isActive !== false}
+                          onCheckedChange={(checked) => updateCategory(category.id, { isActive: checked })}
                         />
+                        <span className="text-xs text-muted-foreground">Active</span>
                       </div>
+                      <Button variant="destructive" size="sm" onClick={() => deleteCategory(category.id)}>
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
                     </div>
-                    <DialogFooter>
-                      <Button onClick={addStudio} className="rounded-xl">Add Studio</Button>
-                    </DialogFooter>
-                  </DialogContent>
-                </Dialog>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-2">
-                {customStudios.map((studio, index) => (
-                  <motion.div
-                    key={studio.id}
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: index * 0.03 }}
-                    className="flex items-center justify-between p-3 rounded-xl bg-muted/30 hover:bg-muted/50 transition-colors"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center">
-                        <Building2 className="h-4 w-4 text-primary" />
-                      </div>
-                      <div>
-                        <p className="font-medium text-sm">{studio.name}</p>
-                        <p className="text-xs text-muted-foreground">{studio.city}</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      {studio.isCustom && (
-                        <Badge variant="secondary" className="text-xs">Custom</Badge>
-                      )}
-                      {studio.isCustom && (
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-8 w-8">
-                              <Trash2 className="h-4 w-4 text-destructive" />
-                            </Button>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>Delete Studio?</AlertDialogTitle>
-                              <AlertDialogDescription>
-                                This will remove "{studio.name}" from the system. This action cannot be undone.
-                              </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>Cancel</AlertDialogCancel>
-                              <AlertDialogAction onClick={() => removeStudio(studio.id)}>
-                                Delete
-                              </AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
-                      )}
-                    </div>
-                  </motion.div>
+                  </div>
                 ))}
               </div>
             </CardContent>
           </Card>
 
-          {/* Categories Management */}
           <Card className="glass-card">
             <CardHeader>
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle className="flex items-center gap-2">
-                    <Tag className="h-5 w-5 text-primary" />
-                    Categories
-                  </CardTitle>
-                  <CardDescription>Manage ticket categories</CardDescription>
-                </div>
-                <Dialog>
-                  <DialogTrigger asChild>
-                    <Button size="sm" className="rounded-xl">
-                      <Plus className="h-4 w-4 mr-2" />
-                      Add Category
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent>
-                    <DialogHeader>
-                      <DialogTitle>Add New Category</DialogTitle>
-                      <DialogDescription>Add a new ticket category to the system.</DialogDescription>
-                    </DialogHeader>
-                    <div className="space-y-4 py-4">
-                      <div className="space-y-2">
-                        <Label>Category Name</Label>
-                        <Input
-                          value={newCategoryName}
-                          onChange={(e) => setNewCategoryName(e.target.value)}
-                          placeholder="Enter category name"
-                          className="rounded-xl"
-                        />
-                      </div>
-                    </div>
-                    <DialogFooter>
-                      <Button onClick={addCategory} className="rounded-xl">Add Category</Button>
-                    </DialogFooter>
-                  </DialogContent>
-                </Dialog>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                {customCategories.map((category, index) => (
-                  <motion.div
-                    key={category.id}
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: index * 0.03 }}
-                    className="flex items-center justify-between p-3 rounded-xl bg-muted/30 hover:bg-muted/50 transition-colors"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center">
-                        <Tag className="h-4 w-4 text-primary" />
-                      </div>
-                      <div>
-                        <p className="font-medium text-sm">{category.name}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {category.subcategories?.length || 0} subcategories
-                        </p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Badge variant="outline" className="text-xs font-mono">{category.code}</Badge>
-                      {category.isCustom && (
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-8 w-8">
-                              <Trash2 className="h-4 w-4 text-destructive" />
-                            </Button>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>Delete Category?</AlertDialogTitle>
-                              <AlertDialogDescription>
-                                This will remove "{category.name}" from the system. This action cannot be undone.
-                              </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>Cancel</AlertDialogCancel>
-                              <AlertDialogAction onClick={() => removeCategory(category.id)}>
-                                Delete
-                              </AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
-                      )}
-                    </div>
-                  </motion.div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* System Tab */}
-        <TabsContent value="system" className="space-y-6">
-          <Card className="glass-card">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Layers className="h-5 w-5 text-primary" />
-                System Configuration
-              </CardTitle>
+              <CardTitle>Subcategory Management</CardTitle>
               <CardDescription>
-                View and manage system-wide settings
+                Maintain subcategories by parent category.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
+                <Select value={selectedCategoryId} onValueChange={setSelectedCategoryId}>
+                  <SelectTrigger><SelectValue placeholder="Select category" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Categories</SelectItem>
+                    {categories.map((category: any) => (
+                      <SelectItem key={category.id} value={category.id}>{category.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Input placeholder="New subcategory" value={newSubcategoryName} onChange={(e) => setNewSubcategoryName(e.target.value)} />
+                <Input placeholder="Code (optional)" value={newSubcategoryCode} onChange={(e) => setNewSubcategoryCode(e.target.value)} />
+                <div className="md:col-span-2">
+                  <Button onClick={createSubcategory} className="w-full rounded-xl">
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add Subcategory
+                  </Button>
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                {filteredSubcategories.map((subcategory: any) => (
+                  <div key={subcategory.id} className="rounded-xl border p-3">
+                    <div className="grid grid-cols-1 md:grid-cols-6 gap-3 items-center">
+                      <Input
+                        defaultValue={subcategory.name}
+                        onBlur={(e) => {
+                          if (e.target.value !== subcategory.name) {
+                            updateSubcategory(subcategory.id, { name: e.target.value.trim() });
+                          }
+                        }}
+                      />
+                      <Input
+                        defaultValue={subcategory.code}
+                        onBlur={(e) => {
+                          if (e.target.value !== subcategory.code) {
+                            updateSubcategory(subcategory.id, { code: e.target.value.trim() || toCode(subcategory.name) });
+                          }
+                        }}
+                      />
+                      <Select
+                        defaultValue={subcategory.defaultPriority || "medium"}
+                        onValueChange={(value) => updateSubcategory(subcategory.id, { defaultPriority: value })}
+                      >
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="low">low</SelectItem>
+                          <SelectItem value="medium">medium</SelectItem>
+                          <SelectItem value="high">high</SelectItem>
+                          <SelectItem value="critical">critical</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <Input
+                        type="number"
+                        defaultValue={subcategory.slaHours || 24}
+                        onBlur={(e) => updateSubcategory(subcategory.id, { slaHours: Number(e.target.value || 24) })}
+                      />
+                      <div className="flex items-center gap-2">
+                        <Switch
+                          checked={subcategory.isActive !== false}
+                          onCheckedChange={(checked) => updateSubcategory(subcategory.id, { isActive: checked })}
+                        />
+                        <span className="text-xs text-muted-foreground">Active</span>
+                      </div>
+                      <Button variant="destructive" size="sm" onClick={() => deleteSubcategory(subcategory.id)}>
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="fields" className="space-y-6">
+          <Card className="glass-card">
+            <CardHeader>
+              <CardTitle>Custom Field Definitions</CardTitle>
+              <CardDescription>
+                Define category/subcategory field models used by new ticket flow globally.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-6 gap-3">
+                <Select value={selectedCategoryId} onValueChange={setSelectedCategoryId}>
+                  <SelectTrigger><SelectValue placeholder="Category" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Categories</SelectItem>
+                    {categories.map((category: any) => (
+                      <SelectItem key={category.id} value={category.id}>{category.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Input placeholder="Field Label" value={newFieldLabel} onChange={(e) => setNewFieldLabel(e.target.value)} />
+                <Input placeholder="Unique ID" value={newFieldUniqueId} onChange={(e) => setNewFieldUniqueId(e.target.value)} />
+                <Select value={newFieldTypeId || undefined} onValueChange={setNewFieldTypeId}>
+                  <SelectTrigger><SelectValue placeholder="Field Type" /></SelectTrigger>
+                  <SelectContent>
+                    {fieldTypes.map((type: any) => (
+                      <SelectItem key={type.id} value={type.id}>{type.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select value={newFieldSubcategoryId} onValueChange={setNewFieldSubcategoryId}>
+                  <SelectTrigger><SelectValue placeholder="Subcategory" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Category-level</SelectItem>
+                    {filteredSubcategories.map((subcategory: any) => (
+                      <SelectItem key={subcategory.id} value={subcategory.id}>{subcategory.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <div className="flex items-center justify-between gap-3 rounded-xl border px-3">
+                  <Label className="mb-0 text-xs">Required</Label>
+                  <Switch checked={newFieldRequired} onCheckedChange={setNewFieldRequired} />
+                </div>
+              </div>
+
+              <Input
+                placeholder="Options (comma-separated for dropdown/checkbox groups)"
+                value={newFieldOptions}
+                onChange={(e) => setNewFieldOptions(e.target.value)}
+              />
+
+              <div className="flex justify-end">
+                <Button onClick={createField} className="rounded-xl">
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Custom Field
+                </Button>
+              </div>
+
+              <Separator />
+
+              <div className="space-y-3">
+                {dynamicFields.map((field: any) => (
+                  <div key={field.id} className="rounded-xl border p-3">
+                    <div className="grid grid-cols-1 md:grid-cols-8 gap-3 items-center">
+                      <Input
+                        defaultValue={field.label}
+                        onBlur={(e) => {
+                          if (e.target.value !== field.label) {
+                            updateField(field.id, { label: e.target.value.trim() });
+                          }
+                        }}
+                      />
+                      <Input
+                        defaultValue={field.uniqueId}
+                        onBlur={(e) => {
+                          if (e.target.value !== field.uniqueId) {
+                            updateField(field.id, { uniqueId: e.target.value.trim() });
+                          }
+                        }}
+                      />
+                      <Select
+                        defaultValue={field.fieldTypeId}
+                        onValueChange={(value) => updateField(field.id, { fieldTypeId: value })}
+                      >
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          {fieldTypes.map((type: any) => (
+                            <SelectItem key={type.id} value={type.id}>{type.name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <Input
+                        defaultValue={(field.options || []).join(",")}
+                        onBlur={(e) => updateField(field.id, { options: parseCsvKeywords(e.target.value) })}
+                      />
+                      <Input
+                        type="number"
+                        defaultValue={field.sortOrder || 0}
+                        onBlur={(e) => updateField(field.id, { sortOrder: Number(e.target.value || 0) })}
+                      />
+                      <div className="flex items-center gap-2">
+                        <Switch
+                          checked={field.isRequired === true}
+                          onCheckedChange={(checked) => updateField(field.id, { isRequired: checked })}
+                        />
+                        <span className="text-xs">Required</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Switch
+                          checked={field.isActive !== false}
+                          onCheckedChange={(checked) => updateField(field.id, { isActive: checked })}
+                        />
+                        <span className="text-xs">Active</span>
+                      </div>
+                      <Button variant="destructive" size="sm" onClick={() => deleteField(field.id)}>
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="sla" className="space-y-6">
+          <Card className="glass-card">
+            <CardHeader>
+              <CardTitle>Global SLA Rules</CardTitle>
+              <CardDescription>
+                Define response and resolution windows used in ticket lifecycle.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+                <Input placeholder="Rule Name" value={newRuleName} onChange={(e) => setNewRuleName(e.target.value)} />
+                <Select value={newRulePriority} onValueChange={(value: Priority) => setNewRulePriority(value)}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="low">low</SelectItem>
+                    <SelectItem value="medium">medium</SelectItem>
+                    <SelectItem value="high">high</SelectItem>
+                    <SelectItem value="critical">critical</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Input
+                  type="number"
+                  value={newRuleResolutionHours}
+                  onChange={(e) => setNewRuleResolutionHours(Number(e.target.value || 24))}
+                  min={1}
+                />
+                <Button onClick={createSlaRule} className="rounded-xl">
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Rule
+                </Button>
+              </div>
+
+              <div className="space-y-3">
+                {slaRules.map((rule: any) => (
+                  <div key={rule.id} className="rounded-xl border p-3">
+                    <div className="grid grid-cols-1 md:grid-cols-8 gap-3 items-center">
+                      <Input
+                        defaultValue={rule.name}
+                        onBlur={(e) => {
+                          if (e.target.value !== rule.name) {
+                            updateSlaRule(rule.id, { name: e.target.value.trim() });
+                          }
+                        }}
+                      />
+                      <Select defaultValue={rule.priority || "medium"} onValueChange={(value) => updateSlaRule(rule.id, { priority: value })}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="low">low</SelectItem>
+                          <SelectItem value="medium">medium</SelectItem>
+                          <SelectItem value="high">high</SelectItem>
+                          <SelectItem value="critical">critical</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <Input
+                        type="number"
+                        defaultValue={rule.firstResponseHours || 2}
+                        onBlur={(e) => updateSlaRule(rule.id, { firstResponseHours: Number(e.target.value || 2) })}
+                      />
+                      <Input
+                        type="number"
+                        defaultValue={rule.resolutionHours || 24}
+                        onBlur={(e) => updateSlaRule(rule.id, { resolutionHours: Number(e.target.value || 24) })}
+                      />
+                      <Input
+                        type="number"
+                        defaultValue={rule.escalationHours || 12}
+                        onBlur={(e) => updateSlaRule(rule.id, { escalationHours: Number(e.target.value || 12) })}
+                      />
+                      <Badge variant="outline">{rule.categoryId ? "Category scoped" : "Global"}</Badge>
+                      <div className="flex items-center gap-2">
+                        <Switch
+                          checked={rule.isActive !== false}
+                          onCheckedChange={(checked) => updateSlaRule(rule.id, { isActive: checked })}
+                        />
+                        <span className="text-xs">Active</span>
+                      </div>
+                      <Button variant="destructive" size="sm" onClick={() => deleteSlaRule(rule.id)}>
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="teams" className="space-y-6">
+          <Card className="glass-card">
+            <CardHeader>
+              <CardTitle>Team Composition</CardTitle>
+              <CardDescription>
+                Manage support teams, leads, and departmental mapping.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+                <Input placeholder="New team name" value={newTeamName} onChange={(e) => setNewTeamName(e.target.value)} />
+                <Select value={newTeamDepartmentId} onValueChange={setNewTeamDepartmentId}>
+                  <SelectTrigger><SelectValue placeholder="Department" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">No Department</SelectItem>
+                    {departments.map((department: any) => (
+                      <SelectItem key={department.id} value={department.id}>{department.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select value={newTeamLeadUserId} onValueChange={setNewTeamLeadUserId}>
+                  <SelectTrigger><SelectValue placeholder="Team lead" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">No Lead</SelectItem>
+                    {users.map((user: any) => (
+                      <SelectItem key={user.id} value={user.id}>{user.displayName || user.email || user.id}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Button onClick={createTeam} className="rounded-xl">
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Team
+                </Button>
+              </div>
+
+              <div className="space-y-3">
+                {teams.map((team: any) => (
+                  <div key={team.id} className="rounded-xl border p-3">
+                    <div className="grid grid-cols-1 md:grid-cols-6 gap-3 items-center">
+                      <Input
+                        defaultValue={team.name}
+                        onBlur={(e) => {
+                          if (e.target.value !== team.name) {
+                            updateTeam(team.id, { name: e.target.value.trim() });
+                          }
+                        }}
+                      />
+                      <Select
+                        defaultValue={team.departmentId || "none"}
+                        onValueChange={(value) => updateTeam(team.id, { departmentId: value === "none" ? null : value })}
+                      >
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none">No Department</SelectItem>
+                          {departments.map((department: any) => (
+                            <SelectItem key={department.id} value={department.id}>{department.name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <Select
+                        defaultValue={team.leadUserId || "none"}
+                        onValueChange={(value) => updateTeam(team.id, { leadUserId: value === "none" ? null : value })}
+                      >
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none">No Lead</SelectItem>
+                          {users.map((user: any) => (
+                            <SelectItem key={user.id} value={user.id}>{user.displayName || user.email || user.id}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <div className="flex items-center gap-2">
+                        <Switch
+                          checked={team.isActive !== false}
+                          onCheckedChange={(checked) => updateTeam(team.id, { isActive: checked })}
+                        />
+                        <span className="text-xs">Active</span>
+                      </div>
+                      <Badge variant="outline">Team</Badge>
+                      <Button variant="destructive" size="sm" onClick={() => deleteTeam(team.id)}>
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="glass-card">
+            <CardHeader>
+              <CardTitle>Team Hierarchy Definition</CardTitle>
+              <CardDescription>
+                Configure manager-team hierarchy JSON. Example: {`{"operations":["support","field"]}`}
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <Textarea
+                className="min-h-52 font-mono text-xs"
+                value={hierarchyDraft}
+                onChange={(e) => setHierarchyDraft(e.target.value)}
+              />
+              <div className="flex justify-end">
+                <Button onClick={saveHierarchy} className="rounded-xl">
+                  <Save className="h-4 w-4 mr-2" />
+                  Save Hierarchy
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="integrations" className="space-y-6">
+          <Card className="glass-card">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2"><Mail className="h-5 w-5 text-primary" />Mailtrap Notification Automation</CardTitle>
+              <CardDescription>
+                Configure assignment/status notification automation transport.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <Input
+                  value={appConfig.integrations.mailtrap.fromEmail}
+                  onChange={(e) =>
+                    saveIntegrations({
+                      ...appConfig,
+                      integrations: {
+                        ...appConfig.integrations,
+                        mailtrap: { ...appConfig.integrations.mailtrap, fromEmail: e.target.value },
+                      },
+                    })
+                  }
+                />
+                <Input
+                  value={appConfig.integrations.mailtrap.fromName}
+                  onChange={(e) =>
+                    saveIntegrations({
+                      ...appConfig,
+                      integrations: {
+                        ...appConfig.integrations,
+                        mailtrap: { ...appConfig.integrations.mailtrap, fromName: e.target.value },
+                      },
+                    })
+                  }
+                />
+                <div className="flex items-center justify-between rounded-xl border p-3">
+                  <Label className="mb-0">Enabled</Label>
+                  <Switch
+                    checked={appConfig.integrations.mailtrap.enabled}
+                    onCheckedChange={(checked) =>
+                      saveIntegrations({
+                        ...appConfig,
+                        integrations: {
+                          ...appConfig.integrations,
+                          mailtrap: { ...appConfig.integrations.mailtrap, enabled: checked },
+                        },
+                      })
+                    }
+                  />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="glass-card">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2"><Webhook className="h-5 w-5 text-primary" />Advanced Webhook Ingestion</CardTitle>
+              <CardDescription>
+                Auto-create tickets from webhook payloads using per-rule mappings and processing mode.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center justify-between rounded-xl border p-3">
+                <div>
+                  <p className="text-sm font-medium">Webhook ingestion service</p>
+                  <p className="text-xs text-muted-foreground">Endpoint: /api/integrations/webhooks/:key</p>
+                </div>
+                <Switch
+                  checked={appConfig.integrations.webhooks.enabled}
+                  onCheckedChange={(checked) =>
+                    saveIntegrations({
+                      ...appConfig,
+                      integrations: {
+                        ...appConfig.integrations,
+                        webhooks: {
+                          ...appConfig.integrations.webhooks,
+                          enabled: checked,
+                        },
+                      },
+                    })
+                  }
+                />
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-6 gap-3">
+                <Input placeholder="Rule name" value={newWebhookName} onChange={(e) => setNewWebhookName(e.target.value)} />
+                <Select value={newWebhookPriority} onValueChange={(value: Priority) => setNewWebhookPriority(value)}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="low">low</SelectItem>
+                    <SelectItem value="medium">medium</SelectItem>
+                    <SelectItem value="high">high</SelectItem>
+                    <SelectItem value="critical">critical</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Select value={newWebhookCategoryId} onValueChange={setNewWebhookCategoryId}>
+                  <SelectTrigger><SelectValue placeholder="Default category" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Any Category</SelectItem>
+                    {categories.map((category: any) => (
+                      <SelectItem key={category.id} value={category.id}>{category.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select value={newWebhookStudioId} onValueChange={setNewWebhookStudioId}>
+                  <SelectTrigger><SelectValue placeholder="Default studio" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Any Studio</SelectItem>
+                    {studios.map((studio: any) => (
+                      <SelectItem key={studio.id} value={studio.id}>{studio.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <div className="flex items-center justify-between rounded-xl border px-3">
+                  <Label className="mb-0 text-xs">Auto-process</Label>
+                  <Switch checked={newWebhookAutoProcess} onCheckedChange={setNewWebhookAutoProcess} />
+                </div>
+                <Button onClick={createWebhookRule} className="rounded-xl">
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Rule
+                </Button>
+              </div>
+
+              <div className="space-y-3">
+                {appConfig.integrations.webhooks.rules.map((rule) => (
+                  <div key={rule.id} className="rounded-xl border p-3">
+                    <div className="grid grid-cols-1 md:grid-cols-7 gap-3 items-center">
+                      <div>
+                        <p className="text-sm font-medium">{rule.name}</p>
+                        <p className="text-xs text-muted-foreground font-mono">/api/integrations/webhooks/{rule.key}</p>
+                      </div>
+                      <Badge className="w-fit" variant="outline">{rule.defaultPriority}</Badge>
+                      <Badge className="w-fit" variant="secondary">{rule.processAutomatically ? "Auto" : "Manual"}</Badge>
+                      <div className="flex items-center gap-2">
+                        <Switch
+                          checked={rule.isActive}
+                          onCheckedChange={(checked) => updateWebhookRule(rule.id, { isActive: checked })}
+                        />
+                        <span className="text-xs">Active</span>
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => updateWebhookRule(rule.id, { processAutomatically: !rule.processAutomatically })}
+                      >
+                        Toggle Process
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => navigator.clipboard.writeText(`${window.location.origin}/api/integrations/webhooks/${rule.key}`)}
+                      >
+                        Copy URL
+                      </Button>
+                      <Button variant="destructive" size="sm" onClick={() => deleteWebhookRule(rule.id)}>
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="glass-card">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2"><Mail className="h-5 w-5 text-primary" />Gmail Ticket Automation</CardTitle>
+              <CardDescription>
+                Connect mailbox identities, define classification rules, and bulk-import historical messages as tickets.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-4">
-                  <h4 className="font-semibold text-sm">Priority Levels</h4>
-                  <div className="space-y-2">
-                    {Object.entries(PRIORITIES).map(([key, config]) => (
-                      <div key={key} className="flex items-center justify-between p-3 rounded-xl bg-muted/30">
-                        <div className="flex items-center gap-3">
-                          <div className={cn(
-                            "h-3 w-3 rounded-full",
-                            key === "critical" && "bg-red-500",
-                            key === "high" && "bg-orange-500",
-                            key === "medium" && "bg-yellow-500",
-                            key === "low" && "bg-green-500",
-                          )} />
-                          <span className="text-sm font-medium">{config.label}</span>
-                        </div>
-                        <span className="text-xs text-muted-foreground">
-                          SLA: {config.slaHours}h
-                        </span>
-                      </div>
-                    ))}
+              <div className="flex items-center justify-between rounded-xl border p-3">
+                <div>
+                  <p className="text-sm font-medium">Gmail automation enabled</p>
+                  <p className="text-xs text-muted-foreground">Applies rule-based classification and import processing</p>
+                </div>
+                <Switch
+                  checked={appConfig.integrations.gmail.enabled}
+                  onCheckedChange={(checked) =>
+                    saveIntegrations({
+                      ...appConfig,
+                      integrations: {
+                        ...appConfig.integrations,
+                        gmail: {
+                          ...appConfig.integrations.gmail,
+                          enabled: checked,
+                        },
+                      },
+                    })
+                  }
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label>Connected Gmail Accounts (metadata)</Label>
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+                  <Input
+                    placeholder="support@company.com"
+                    value={newGmailAccountEmail}
+                    onChange={(e) => setNewGmailAccountEmail(e.target.value)}
+                  />
+                  <Button onClick={addGmailAccount} className="rounded-xl">
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add Account
+                  </Button>
+                  <div className="md:col-span-2 text-xs text-muted-foreground flex items-center">
+                    Store mailbox identities used for ingestion workflows.
                   </div>
                 </div>
-
-                <div className="space-y-4">
-                  <h4 className="font-semibold text-sm">Status Types</h4>
-                  <div className="space-y-2">
-                    {Object.entries(STATUSES).map(([key, config]) => (
-                      <div key={key} className="flex items-center justify-between p-3 rounded-xl bg-muted/30">
-                        <div className="flex items-center gap-3">
-                          <Badge variant="outline" className="text-xs">{config.label}</Badge>
-                        </div>
+                <div className="space-y-2">
+                  {appConfig.integrations.gmail.connectedAccounts.map((account) => (
+                    <div key={account.id} className="rounded-lg border p-2 flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-medium">{account.email}</p>
+                        <p className="text-xs text-muted-foreground">Connected {new Date(account.connectedAt).toLocaleString()}</p>
                       </div>
-                    ))}
-                  </div>
+                      <Button variant="destructive" size="sm" onClick={() => removeGmailAccount(account.id)}>
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ))}
                 </div>
               </div>
 
               <Separator />
 
-              <div className="space-y-4">
-                <h4 className="font-semibold text-sm">Departments</h4>
-                <div className="flex flex-wrap gap-2">
-                  {DEPARTMENTS.map((dept) => (
-                    <Badge key={dept} variant="secondary" className="rounded-lg">
-                      {dept}
-                    </Badge>
+              <div className="space-y-2">
+                <Label>Gmail Classification Rules</Label>
+                <div className="grid grid-cols-1 md:grid-cols-7 gap-3">
+                  <Input placeholder="Rule name" value={newGmailRuleName} onChange={(e) => setNewGmailRuleName(e.target.value)} />
+                  <Input
+                    placeholder="Keywords (comma separated)"
+                    value={newGmailRuleKeywords}
+                    onChange={(e) => setNewGmailRuleKeywords(e.target.value)}
+                  />
+                  <Select value={newGmailRuleCategoryId} onValueChange={setNewGmailRuleCategoryId}>
+                    <SelectTrigger><SelectValue placeholder="Category" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Any Category</SelectItem>
+                      {categories.map((category: any) => (
+                        <SelectItem key={category.id} value={category.id}>{category.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Select value={newGmailRuleSubcategoryId} onValueChange={setNewGmailRuleSubcategoryId}>
+                    <SelectTrigger><SelectValue placeholder="Subcategory" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Any Subcategory</SelectItem>
+                      {subcategories.map((subcategory: any) => (
+                        <SelectItem key={subcategory.id} value={subcategory.id}>{subcategory.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Select value={newGmailRulePriority} onValueChange={(value: Priority) => setNewGmailRulePriority(value)}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="low">low</SelectItem>
+                      <SelectItem value="medium">medium</SelectItem>
+                      <SelectItem value="high">high</SelectItem>
+                      <SelectItem value="critical">critical</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <div className="flex items-center justify-between rounded-xl border px-3">
+                    <Label className="mb-0 text-xs">Auto-process</Label>
+                    <Switch checked={newGmailRuleAutoProcess} onCheckedChange={setNewGmailRuleAutoProcess} />
+                  </div>
+                  <Button onClick={addGmailRule} className="rounded-xl">
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add Rule
+                  </Button>
+                </div>
+
+                <div className="space-y-2">
+                  {appConfig.integrations.gmail.rules.map((rule) => (
+                    <div key={rule.id} className="rounded-lg border p-2 flex items-center justify-between gap-3 flex-wrap">
+                      <div>
+                        <p className="text-sm font-medium">{rule.name}</p>
+                        <p className="text-xs text-muted-foreground">Keywords: {rule.matchKeywords.join(", ") || "none"}</p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Badge variant="outline">{rule.priority}</Badge>
+                        <Badge variant={rule.autoProcess ? "default" : "secondary"}>{rule.autoProcess ? "Auto" : "Manual"}</Badge>
+                        <Button variant="destructive" size="sm" onClick={() => deleteGmailRule(rule.id)}>
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
                   ))}
                 </div>
               </div>
 
-              <div className="flex items-center gap-3 p-4 rounded-xl bg-amber-500/10 border border-amber-500/20">
-                <AlertCircle className="h-5 w-5 text-amber-500" />
-                <div>
-                  <p className="text-sm font-medium">System Configuration</p>
-                  <p className="text-xs text-muted-foreground">
-                    Priority, status, and department settings are managed at the system level.
-                    Contact your administrator to make changes.
-                  </p>
+              <Separator />
+
+              <div className="space-y-2">
+                <Label>Import Past Gmail Tickets</Label>
+                <div className="flex items-center gap-3 flex-wrap">
+                  <label className={cn("inline-flex items-center gap-2 rounded-xl border px-3 py-2 cursor-pointer hover:bg-muted/30")}>
+                    <Upload className="h-4 w-4" />
+                    Upload JSON Export
+                    <input
+                      type="file"
+                      accept="application/json"
+                      className="hidden"
+                      onChange={(e) => handleGmailImportFile(e.target.files?.[0] || null)}
+                    />
+                  </label>
+                  <span className="text-xs text-muted-foreground">
+                    Expected format: [{`{ id, subject, body, fromEmail, fromName }`}]
+                  </span>
                 </div>
+
+                {gmailImportResult && (
+                  <Alert className="border-emerald-500/40 bg-emerald-500/10">
+                    <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                    <AlertDescription>{gmailImportResult}</AlertDescription>
+                  </Alert>
+                )}
               </div>
             </CardContent>
           </Card>
+
+          {saveAppConfigMutation.isPending && (
+            <Alert className="border-amber-500/40 bg-amber-500/10">
+              <AlertTriangle className="h-4 w-4 text-amber-600" />
+              <AlertDescription>Saving integration configuration...</AlertDescription>
+            </Alert>
+          )}
         </TabsContent>
       </Tabs>
     </div>

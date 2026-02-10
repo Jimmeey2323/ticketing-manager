@@ -10,7 +10,8 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { useAuth } from "@/hooks/useAuth";
 import { Menu, LogOut, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { lazy, Suspense } from "react";
+import { lazy, Suspense, useEffect } from "react";
+import { applyUiPreferences, loadUiPreferences } from "@/lib/ui-preferences";
 
 // Lazy load page components for code splitting
 const NotFound = lazy(() => import("@/pages/not-found"));
@@ -59,6 +60,10 @@ function AuthenticatedRoutes() {
 
 function AppLayout() {
   const { user, isLoading, signOut } = useAuth();
+
+  useEffect(() => {
+    applyUiPreferences(loadUiPreferences());
+  }, []);
 
   if (isLoading) {
     return (

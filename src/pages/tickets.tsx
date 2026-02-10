@@ -449,6 +449,20 @@ export default function Tickets() {
     critical: tickets.filter((t: any) => t.priority === 'critical').length,
   } : { total: 0, new: 0, inProgress: 0, resolved: 0, overdue: 0, critical: 0 };
 
+  const criticalTickets = useMemo(
+    () =>
+      (tickets || [])
+        .filter((ticket: any) => ticket.priority === "critical")
+        .sort((a: any, b: any) => {
+          const aDeadline = a.slaDueAt ? new Date(a.slaDueAt).getTime() : Number.MAX_SAFE_INTEGER;
+          const bDeadline = b.slaDueAt ? new Date(b.slaDueAt).getTime() : Number.MAX_SAFE_INTEGER;
+          return aDeadline - bDeadline;
+        }),
+    [tickets],
+  );
+
+  const isCriticalTicket = (ticket: any) => ticket.priority === "critical";
+
   return (
     <div className="space-y-6 max-w-full mx-auto">
       {/* Header */}
@@ -520,7 +534,7 @@ export default function Tickets() {
           { label: "In Progress", value: stats.inProgress, icon: Clock, color: "from-amber-500 to-orange-500" },
           { label: "Resolved", value: stats.resolved, icon: TrendingUp, color: "from-green-500 to-emerald-500" },
           { label: "Overdue", value: stats.overdue, icon: AlertTriangle, color: "from-red-500 to-rose-500" },
-          { label: "Critical", value: stats.critical, icon: AlertTriangle, color: "from-purple-500 to-pink-500" },
+          { label: "Critical", value: stats.critical, icon: AlertTriangle, color: "from-red-500 to-rose-600" },
         ].map((stat, index) => (
           <motion.div
             key={stat.label}
@@ -544,6 +558,38 @@ export default function Tickets() {
           </motion.div>
         ))}
       </div>
+
+      {criticalTickets.length > 0 && (
+        <Card className="critical-ticket-spotlight border-red-500/50 overflow-hidden">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between gap-4 flex-wrap">
+              <div className="flex items-center gap-3 min-w-0">
+                <span className="critical-ticket-dot mt-0.5" />
+                <div>
+                  <p className="text-xs font-semibold text-red-700 uppercase tracking-wide">
+                    Critical Response Lane
+                  </p>
+                  <p className="text-xs text-red-700/80">
+                    {criticalTickets.length} critical ticket{criticalTickets.length === 1 ? "" : "s"} need priority handling
+                  </p>
+                </div>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {criticalTickets.slice(0, 4).map((ticket: any) => (
+                  <button
+                    key={ticket.id}
+                    onClick={() => handleTicketClick(ticket)}
+                    className="critical-ticket-chip"
+                  >
+                    <AlertTriangle className="h-3 w-3" />
+                    <span className="truncate max-w-[200px]">{ticket.ticketNumber}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Filters Card */}
       <Card className={cn("border-0 shadow-xl", glassStyles.cards.primary)}>
@@ -988,6 +1034,7 @@ export default function Tickets() {
                             "border-b border-border/30 cursor-pointer transition-all duration-200",
                             "hover:bg-white/60 hover:shadow-md",
                             isOverdue && "bg-red-500/5",
+                            isCriticalTicket(ticket) && "critical-ticket-row",
                             index % 2 === 0 && "bg-white/20"
                           )}
                           onClick={() => handleTicketClick(ticket)}
@@ -1000,7 +1047,10 @@ export default function Tickets() {
                           </td>
                           <td className="p-2 max-w-xs">
                             <div className="flex flex-col">
-                              <span className="font-medium text-xs line-clamp-1">{ticket.title}</span>
+                              <span className="font-medium text-xs line-clamp-1 flex items-center gap-1">
+                                {isCriticalTicket(ticket) && <span className="critical-ticket-dot" />}
+                                {ticket.title}
+                              </span>
                               <span className="text-[10px] text-muted-foreground font-mono">{ticket.ticketNumber}</span>
                             </div>
                           </td>
@@ -1189,7 +1239,8 @@ export default function Tickets() {
                         ticket.priority === "critical" ? "border-l-red-500" :
                         ticket.priority === "high" ? "border-l-orange-500" :
                         ticket.priority === "medium" ? "border-l-yellow-500" : "border-l-green-500",
-                        isOverdue && "ring-2 ring-red-500/50"
+                        isOverdue && "ring-2 ring-red-500/50",
+                        isCriticalTicket(ticket) && "critical-ticket-card"
                       )}
                       onClick={() => handleTicketClick(ticket)}
                     >
@@ -1274,7 +1325,8 @@ export default function Tickets() {
                         ticket.priority === "critical" ? "border-l-red-500" :
                         ticket.priority === "high" ? "border-l-orange-500" :
                         ticket.priority === "medium" ? "border-l-yellow-500" : "border-l-green-500",
-                        isOverdue && "ring-2 ring-red-500/50"
+                        isOverdue && "ring-2 ring-red-500/50",
+                        isCriticalTicket(ticket) && "critical-ticket-card"
                       )}
                       onClick={() => handleTicketClick(ticket)}
                     >
@@ -1335,7 +1387,8 @@ export default function Tickets() {
                       animate={{ opacity: 1 }}
                       className={cn(
                         "p-3 cursor-pointer hover:bg-muted/30 transition-colors flex items-center gap-3",
-                        isOverdue && "bg-red-500/5"
+                        isOverdue && "bg-red-500/5",
+                        isCriticalTicket(ticket) && "critical-ticket-row"
                       )}
                       onClick={() => handleTicketClick(ticket)}
                     >
@@ -1379,7 +1432,10 @@ export default function Tickets() {
                       {statusTickets.map((ticket: any) => (
                         <Card
                           key={ticket.id}
-                          className="cursor-pointer hover:shadow-md transition-shadow"
+                          className={cn(
+                            "cursor-pointer hover:shadow-md transition-shadow",
+                            isCriticalTicket(ticket) && "critical-ticket-card border-red-500/60",
+                          )}
                           onClick={() => handleTicketClick(ticket)}
                         >
                           <CardContent className="p-3 space-y-2">
@@ -1484,7 +1540,8 @@ export default function Tickets() {
                                   ticket.priority === "critical" ? "border-l-red-500" :
                                   ticket.priority === "high" ? "border-l-orange-500" :
                                   ticket.priority === "medium" ? "border-l-yellow-500" : "border-l-green-500",
-                                  isOverdue && "ring-2 ring-red-500/30"
+                                  isOverdue && "ring-2 ring-red-500/30",
+                                  isCriticalTicket(ticket) && "critical-ticket-card"
                                 )}
                                 onClick={() => handleTicketClick(ticket)}
                               >
