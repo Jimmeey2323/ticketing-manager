@@ -653,7 +653,7 @@ export default function Settings() {
                   </p>
                 </div>
                 <Button variant="outline" className="rounded-xl">
-                  {settings.security.twoFactorEnabled ? "Manage" : "Enable"}
+                  {localSettings.security.twoFactorEnabled ? "Manage" : "Enable"}
                 </Button>
               </div>
 

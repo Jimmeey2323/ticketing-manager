@@ -193,21 +193,21 @@ export const colors = {
   info: "#3b82f6",
 };
 
-// Typography system
+// Typography system - Professional compact sizes
 export const typography = {
   heading: {
-    h1: "text-5xl font-bold tracking-tight",
-    h2: "text-4xl font-bold tracking-tight",
-    h3: "text-3xl font-semibold tracking-tight",
-    h4: "text-2xl font-semibold tracking-tight",
-    h5: "text-xl font-semibold",
-    h6: "text-lg font-semibold",
+    h1: "text-3xl font-bold tracking-tight",      // Reduced from 5xl
+    h2: "text-2xl font-bold tracking-tight",      // Reduced from 4xl
+    h3: "text-xl font-semibold tracking-tight",   // Reduced from 3xl
+    h4: "text-lg font-semibold tracking-tight",   // Reduced from 2xl
+    h5: "text-base font-semibold",                // Reduced from xl
+    h6: "text-sm font-semibold",                  // Reduced from lg
   },
   body: {
-    large: "text-lg",
-    base: "text-base",
-    small: "text-sm",
-    xs: "text-xs",
+    large: "text-base",       // Reduced from lg
+    base: "text-sm",         // Reduced from base
+    small: "text-xs",        // Reduced from sm
+    xs: "text-[10px]",       // Reduced from xs
   },
   weight: {
     light: "font-light",

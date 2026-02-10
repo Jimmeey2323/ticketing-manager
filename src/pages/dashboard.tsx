@@ -255,10 +255,10 @@ export default function DashboardPremium() {
           className="flex items-center justify-between"
         >
           <div>
-            <h1 className={cn("text-4xl font-bold mb-2", glassStyles.textGradients.primary)}>
+            <h1 className={cn("text-2xl font-bold mb-2", glassStyles.textGradients.primary)}>
               Dashboard
             </h1>
-            <p className="text-slate-600 text-lg">
+            <p className="text-slate-600 text-sm">
               Welcome back! Here's what's happening with your support.
             </p>
           </div>
@@ -324,7 +324,7 @@ export default function DashboardPremium() {
                   </div>
                   <div>
                     <p className="text-slate-600 text-sm font-medium mb-1">{metric.title}</p>
-                    <p className="text-3xl font-bold text-slate-900">{metric.value}</p>
+                    <p className="text-2xl font-bold text-slate-900">{metric.value}</p>
                     <p className="text-xs text-slate-500 mt-1">{metric.changeLabel}</p>
                   </div>
                 </CardContent>
@@ -346,7 +346,7 @@ export default function DashboardPremium() {
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <div>
-                    <CardTitle className="text-2xl font-bold text-slate-900">
+                    <CardTitle className="text-lg font-bold text-slate-900">
                       Weekly Activity
                     </CardTitle>
                     <CardDescription className="text-slate-600">
@@ -426,7 +426,7 @@ export default function DashboardPremium() {
                     <Target className="w-5 h-5 text-white" />
                   </div>
                   <div>
-                    <CardTitle className="text-lg font-bold text-slate-900">
+                    <CardTitle className="text-base font-bold text-slate-900">
                       SLA Compliance
                     </CardTitle>
                   </div>
@@ -462,7 +462,7 @@ export default function DashboardPremium() {
                       </defs>
                     </svg>
                     <div className="absolute inset-0 flex items-center justify-center">
-                      <span className="text-3xl font-bold text-slate-900">
+                      <span className="text-2xl font-bold text-slate-900">
                         {stats.slaCompliance}%
                       </span>
                     </div>
@@ -631,7 +631,7 @@ export default function DashboardPremium() {
                       glassStyles.effects.float
                     )}
                   >
-                    <div className="text-3xl font-bold text-slate-900 mb-1">{issue.count}</div>
+                    <div className="text-2xl font-bold text-slate-900 mb-1">{issue.count}</div>
                     <div className="text-sm font-medium text-slate-600">{issue.category}</div>
                   </motion.div>
                 ))}
