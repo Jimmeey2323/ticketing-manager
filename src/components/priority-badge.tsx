@@ -9,7 +9,7 @@ interface PriorityBadgeProps {
 const priorityConfig: Record<string, { label: string; className: string }> = {
   critical: {
     label: "Critical",
-    className: "bg-red-500/15 text-red-700 dark:text-red-300 border border-red-400/40 dark:border-red-400/60 shadow-sm hover:shadow-md hover:bg-red-500/20 transition-all animate-glow",
+    className: "bg-red-500/15 text-red-700 dark:text-red-300 border-2 border-red-500/50 dark:border-red-400/60 shadow-sm hover:shadow-md hover:bg-red-500/20 transition-all animate-glow font-semibold",
   },
   high: {
     label: "High",

@@ -38,6 +38,15 @@ import {
   UserPlus,
   ChevronRight,
   ChevronUp,
+  MoreHorizontal,
+  Check,
+  Send,
+  MessageSquare,
+  AlertCircle,
+  Copy,
+  Trash2,
+  Archive,
+  Flag,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -973,48 +982,49 @@ export default function Tickets() {
           {/* Table View with AI Columns */}
           {viewMode === "table" && (
             <div className={cn("rounded-xl overflow-hidden shadow-xl", glassStyles.cards.primary)}>
-              <div className="overflow-x-auto">
+              <div className="overflow-x-auto max-h-[calc(100vh-16rem)] relative">
                 <table className="w-full">
-                  <thead className={cn("border-b border-border/50", glassStyles.cards.secondary)}>
+                  <thead className="sticky top-0 z-10 border-b-2 border-border/60 bg-slate-900/95 dark:bg-slate-950/95 backdrop-blur-sm shadow-md">
                     <tr>
-                      <th className="text-left p-2 text-xs font-semibold uppercase tracking-wide">
+                      <th className="text-left p-3 text-xs font-bold uppercase tracking-wide text-white">
                         <Checkbox
                           checked={selectedTickets.size === tickets.length}
                           onCheckedChange={(checked) => checked ? selectAllVisible() : setSelectedTickets(new Set())}
+                          className="border-white/30"
                         />
                       </th>
-                      <th className="text-left p-2 text-xs font-semibold uppercase tracking-wide">Ticket</th>
-                      <th className="text-left p-2 text-xs font-semibold uppercase tracking-wide">Status</th>
-                      <th className="text-left p-2 text-xs font-semibold uppercase tracking-wide">Priority</th>
-                      <th className="text-left p-2 text-xs font-semibold uppercase tracking-wide">
+                      <th className="text-left p-3 text-xs font-bold uppercase tracking-wide text-white">Ticket</th>
+                      <th className="text-left p-3 text-xs font-bold uppercase tracking-wide text-white">Status</th>
+                      <th className="text-left p-3 text-xs font-bold uppercase tracking-wide text-white">Priority</th>
+                      <th className="text-left p-3 text-xs font-bold uppercase tracking-wide text-white">
                         <div className="flex items-center gap-1">
-                          <Sparkles className="h-3 w-3 text-purple-600" />
+                          <Sparkles className="h-3 w-3 text-purple-300" />
                           Sentiment
                         </div>
                       </th>
-                      <th className="text-left p-2 text-xs font-semibold uppercase tracking-wide">
+                      <th className="text-left p-3 text-xs font-bold uppercase tracking-wide text-white">
                         <div className="flex items-center gap-1">
-                          <Activity className="h-3 w-3 text-blue-600" />
+                          <Activity className="h-3 w-3 text-blue-300" />
                           Urgency
                         </div>
                       </th>
-                      <th className="text-left p-2 text-xs font-semibold uppercase tracking-wide">
+                      <th className="text-left p-3 text-xs font-bold uppercase tracking-wide text-white">
                         <div className="flex items-center gap-1">
-                          <AlertTriangle className="h-3 w-3 text-amber-600" />
+                          <AlertTriangle className="h-3 w-3 text-amber-300" />
                           Risk
                         </div>
                       </th>
-                      <th className="text-left p-2 text-xs font-semibold uppercase tracking-wide">
+                      <th className="text-left p-3 text-xs font-bold uppercase tracking-wide text-white">
                         <div className="flex items-center gap-1">
-                          <Star className="h-3 w-3 text-yellow-600" />
+                          <Star className="h-3 w-3 text-yellow-300" />
                           Impact
                         </div>
                       </th>
-                      <th className="text-left p-2 text-xs font-semibold uppercase tracking-wide">Category</th>
-                      <th className="text-left p-2 text-xs font-semibold uppercase tracking-wide">Customer</th>
-                      <th className="text-left p-2 text-xs font-semibold uppercase tracking-wide">Assigned</th>
-                      <th className="text-left p-2 text-xs font-semibold uppercase tracking-wide">Created</th>
-                      <th className="text-left p-2 text-xs font-semibold uppercase tracking-wide">Actions</th>
+                      <th className="text-left p-3 text-xs font-bold uppercase tracking-wide text-white">Category</th>
+                      <th className="text-left p-3 text-xs font-bold uppercase tracking-wide text-white">Customer</th>
+                      <th className="text-left p-3 text-xs font-bold uppercase tracking-wide text-white">Assigned</th>
+                      <th className="text-left p-3 text-xs font-bold uppercase tracking-wide text-white">Created</th>
+                      <th className="text-left p-3 text-xs font-bold uppercase tracking-wide text-white">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -1177,33 +1187,80 @@ export default function Tickets() {
                             </span>
                           </td>
 
-                          {/* Suggested Actions Column */}
+                          {/* Actions Column */}
                           <td className="p-2" onClick={(e) => e.stopPropagation()}>
-                            {analysis?.suggestedActions && analysis.suggestedActions.length > 0 ? (
-                              <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                  <Button variant="ghost" size="sm" className="h-6 px-2">
-                                    <Zap className="h-3 w-3 text-purple-600" />
-                                  </Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end">
-                                  <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">
-                                    AI Suggestions
-                                  </div>
-                                  <DropdownMenuSeparator />
-                                  {analysis.suggestedActions.map((action: string, i: number) => (
-                                    <DropdownMenuItem key={i} className="text-xs">
-                                      <ChevronRight className="h-3 w-3 mr-1" />
-                                      {action}
-                                    </DropdownMenuItem>
-                                  ))}
-                                </DropdownMenuContent>
-                              </DropdownMenu>
-                            ) : (
-                              <Button variant="ghost" size="sm" className="h-6 px-2 opacity-30 cursor-not-allowed">
-                                <Zap className="h-3 w-3" />
-                              </Button>
-                            )}
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="sm" className="h-7 w-7 p-0">
+                                  <MoreHorizontal className="h-4 w-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end" className="w-48">
+                                <DropdownMenuItem onClick={() => handleTicketClick(ticket)}>
+                                  <Eye className="mr-2 h-4 w-4" />
+                                  View Details
+                                </DropdownMenuItem>
+                                <DropdownMenuItem>
+                                  <Edit3 className="mr-2 h-4 w-4" />
+                                  Edit Ticket
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem>
+                                  <UserPlus className="mr-2 h-4 w-4" />
+                                  Assign to Me
+                                </DropdownMenuItem>
+                                <DropdownMenuItem>
+                                  <User className="mr-2 h-4 w-4" />
+                                  Reassign
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem>
+                                  <Check className="mr-2 h-4 w-4 text-green-600" />
+                                  Mark Resolved
+                                </DropdownMenuItem>
+                                <DropdownMenuItem>
+                                  <Send className="mr-2 h-4 w-4 text-blue-600" />
+                                  Escalate
+                                </DropdownMenuItem>
+                                <DropdownMenuItem>
+                                  <Flag className="mr-2 h-4 w-4 text-orange-600" />
+                                  Change Priority
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem>
+                                  <MessageSquare className="mr-2 h-4 w-4" />
+                                  Add Comment
+                                </DropdownMenuItem>
+                                <DropdownMenuItem>
+                                  <Copy className="mr-2 h-4 w-4" />
+                                  Duplicate
+                                </DropdownMenuItem>
+                                <DropdownMenuItem>
+                                  <Archive className="mr-2 h-4 w-4" />
+                                  Archive
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                {analysis?.suggestedActions && analysis.suggestedActions.length > 0 && (
+                                  <>
+                                    <div className="px-2 py-1.5 text-xs font-semibold text-purple-600 flex items-center gap-1">
+                                      <Sparkles className="h-3 w-3" />
+                                      AI Suggestions
+                                    </div>
+                                    {analysis.suggestedActions.map((action: string, i: number) => (
+                                      <DropdownMenuItem key={i} className="text-xs pl-6">
+                                        <ChevronRight className="h-3 w-3 mr-1" />
+                                        {action}
+                                      </DropdownMenuItem>
+                                    ))}
+                                    <DropdownMenuSeparator />
+                                  </>
+                                )}
+                                <DropdownMenuItem className="text-red-600">
+                                  <Trash2 className="mr-2 h-4 w-4" />
+                                  Delete
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
                           </td>
                         </motion.tr>
                       );

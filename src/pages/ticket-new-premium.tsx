@@ -1146,252 +1146,282 @@ export default function TicketCreationPremium() {
                   initial={{ opacity: 0, x: 20 }}
                   animate={{ opacity: 1, x: 0 }}
                   exit={{ opacity: 0, x: -20 }}
-                  className="space-y-4"
+                  className="space-y-5"
                 >
-                  <Card className={cn("rounded-2xl border-0", glassStyles.cards.primary)}>
-                    <CardHeader className="pb-3">
-                      <CardTitle className="text-base font-semibold flex items-center gap-2">
-                        <Zap className="h-4 w-4 text-indigo-600" />
-                        Ticket Workflow Map
-                      </CardTitle>
-                      <CardDescription className="text-xs">
-                        Follow this order for consistent and complete ticket intake.
-                      </CardDescription>
+                  {/* Progress Guide */}
+                  <Card className={cn("rounded-2xl border-0 shadow-lg", glassStyles.cards.primary)}>
+                    <CardHeader className="pb-4">
+                      <div className="flex items-center gap-3 mb-2">
+                        <div className={cn("p-2 rounded-xl", glassStyles.gradients.accent)}>
+                          <Zap className="h-5 w-5 text-white" />
+                        </div>
+                        <div>
+                          <CardTitle className="text-lg font-bold">Ticket Creation Guide</CardTitle>
+                          <CardDescription className="text-xs mt-1">
+                            Complete each section below - required fields are marked with *
+                          </CardDescription>
+                        </div>
+                      </div>
                     </CardHeader>
                     <CardContent>
-                      <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+                      <div className="grid grid-cols-2 md:grid-cols-6 gap-2">
                         {[
-                          { title: "Issue Summary", detail: "Description + AI title", icon: FileText },
-                          { title: "Routing", detail: "Team owner + SLA intent", icon: Users },
-                          { title: "Classification", detail: "Studio, category, priority", icon: Tag },
-                          { title: "Context Modules", detail: "Client / class / trainer", icon: Building },
-                        ].map((section, index) => (
+                          { num: "1", title: "Basic Info", icon: FileText, color: "text-blue-600" },
+                          { num: "2", title: "Classification", icon: Tag, color: "text-purple-600" },
+                          { num: "3", title: "Assignment", icon: Users, color: "text-green-600" },
+                          { num: "4", title: "Customer", icon: User, color: "text-orange-600" },
+                          { num: "5", title: "Class/Trainer", icon: Calendar, color: "text-pink-600" },
+                          { num: "6", title: "Details", icon: Clock, color: "text-teal-600" },
+                        ].map((step) => (
                           <div
-                            key={section.title}
-                            className="rounded-xl border border-border/50 bg-background/60 p-3"
+                            key={step.num}
+                            className="flex flex-col items-center p-2 rounded-lg bg-muted/40 border border-border/50"
                           >
-                            <div className="flex items-center gap-2 mb-2">
-                              <span className="h-5 w-5 rounded-full bg-primary/15 text-primary text-[11px] font-semibold flex items-center justify-center">
-                                {index + 1}
+                            <div className="flex items-center gap-1.5 mb-1">
+                              <span className="h-5 w-5 rounded-full bg-primary/15 text-primary text-[10px] font-bold flex items-center justify-center">
+                                {step.num}
                               </span>
-                              <section.icon className="h-3.5 w-3.5 text-primary" />
+                              <step.icon className={cn("h-3.5 w-3.5", step.color)} />
                             </div>
-                            <p className="text-xs font-semibold">{section.title}</p>
-                            <p className="text-[11px] text-muted-foreground mt-1">{section.detail}</p>
+                            <p className="text-[10px] font-semibold text-center">{step.title}</p>
                           </div>
                         ))}
                       </div>
                     </CardContent>
                   </Card>
 
-                  {/* AI Description & Title */}
-                  <Card className={cn("rounded-2xl border-0", glassStyles.cards.primary)}>
-                    <CardHeader className="pb-3">
-                      <CardTitle className="text-base font-semibold flex items-center gap-2">
-                        <FileText className="h-4 w-4 text-primary" />
-                        AI Description & Title
-                      </CardTitle>
-                      <CardDescription className="text-xs">
-                        Describe the issue in detail. AI will help generate a title.
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-3">
-                      <FormField
-                        control={form.control}
-                        name="description"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel className="text-sm font-medium">Description *</FormLabel>
-                            <FormControl>
-                              <Textarea
-                                placeholder="Describe the issue in your own words..."
-                                className={cn(
-                                  "min-h-24 rounded-xl text-sm",
-                                  isFieldHighlighted("description") && "template-field-highlight"
-                                )}
-                                {...field}
-                              />
-                            </FormControl>
-                            <FormMessage className="text-xs" />
-                          </FormItem>
-                        )}
-                      />
+                  {/* Section 1: Basic Information */}
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-3">
+                      <div className={cn("p-2.5 rounded-xl shadow-md", glassStyles.gradients.primary)}>
+                        <FileText className="h-5 w-5 text-white" />
+                      </div>
+                      <div>
+                        <h2 className="text-lg font-bold text-foreground">1. Basic Information</h2>
+                        <p className="text-xs text-muted-foreground">
+                          Start with a clear description - AI will help create the title
+                        </p>
+                      </div>
+                    </div>
 
-                      <div className="flex items-end gap-2">
-                        <div className="flex-1">
+                    <Card className={cn("rounded-2xl border-0 shadow-md", glassStyles.cards.primary)}>
+                      <CardContent className="pt-6 space-y-4">
+                        <FormField
+                          control={form.control}
+                          name="description"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel className="text-sm font-semibold flex items-center gap-2">
+                                <FileText className="h-4 w-4 text-blue-600" />
+                                Issue Description *
+                              </FormLabel>
+                              <FormControl>
+                                <Textarea
+                                  placeholder="Describe what happened in detail. Include when, where, and what the customer/staff experienced..."
+                                  className={cn(
+                                    "min-h-32 rounded-xl text-sm resize-none",
+                                    isFieldHighlighted("description") && "template-field-highlight"
+                                  )}
+                                  {...field}
+                                />
+                              </FormControl>
+                              <FormDescription className="text-xs flex items-start gap-1.5">
+                                <AlertCircle className="h-3 w-3 mt-0.5 shrink-0" />
+                                Include specific details like times, locations, people involved, and what resolution is needed
+                              </FormDescription>
+                              <FormMessage className="text-xs" />
+                            </FormItem>
+                          )}
+                        />
+
+                        <div className="flex items-end gap-3">
+                          <div className="flex-1">
+                            <FormField
+                              control={form.control}
+                              name="title"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel className="text-sm font-semibold flex items-center gap-2">
+                                    <Hash className="h-4 w-4 text-blue-600" />
+                                    Ticket Title *
+                                  </FormLabel>
+                                  <FormControl>
+                                    <Input
+                                      placeholder="e.g., 'Customer reported class cancellation issue'"
+                                      className={cn(
+                                        "rounded-xl text-sm",
+                                        isFieldHighlighted("title") && "template-field-highlight"
+                                      )}
+                                      {...field}
+                                    />
+                                  </FormControl>
+                                  <FormMessage className="text-xs" />
+                                </FormItem>
+                              )}
+                            />
+                          </div>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={generateTitle}
+                            disabled={isGeneratingTitle || description.length < 10}
+                            className={cn(
+                              "rounded-xl text-sm h-10 px-4",
+                              glassStyles.buttons.secondary
+                            )}
+                          >
+                            {isGeneratingTitle ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <Sparkles className="h-4 w-4" />
+                            )}
+                            <span className="ml-2">AI Generate</span>
+                          </Button>
+                        </div>
+
+                        <FormField
+                          control={form.control}
+                          name="priority"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel className="text-sm font-semibold flex items-center gap-2">
+                                <AlertCircle className="h-4 w-4 text-amber-600" />
+                                Priority Level
+                              </FormLabel>
+                              <FormControl>
+                                <RadioGroup
+                                  onValueChange={field.onChange}
+                                  value={field.value}
+                                  className="grid grid-cols-2 md:grid-cols-4 gap-3"
+                                >
+                                  {Object.entries(PRIORITIES).map(([value, config]) => (
+                                    <label
+                                      key={value}
+                                      className={cn(
+                                        "flex flex-col items-center justify-center p-3 rounded-xl cursor-pointer transition-all border-2 hover:shadow-md",
+                                        field.value === value
+                                          ? "border-primary bg-primary/10 shadow-md"
+                                          : "border-border/60 hover:border-primary/50 bg-background/60"
+                                      )}
+                                    >
+                                      <RadioGroupItem value={value} className="sr-only" />
+                                      <span className={cn(
+                                        "text-sm font-bold mb-1",
+                                        field.value === value ? "text-primary" : "text-muted-foreground"
+                                      )}>
+                                        {config.label}
+                                      </span>
+                                      <span className="text-[10px] text-muted-foreground text-center">
+                                        {value === 'critical' ? '< 2 hrs' : value === 'high' ? '< 4 hrs' : value === 'medium' ? '< 24 hrs' : '< 48 hrs'}
+                                      </span>
+                                    </label>
+                                  ))}
+                                </RadioGroup>
+                              </FormControl>
+                              <FormDescription className="text-xs flex items-start gap-1.5">
+                                <AlertCircle className="h-3 w-3 mt-0.5 shrink-0" />
+                                Priority determines response time - Critical for urgent customer-facing issues
+                              </FormDescription>
+                              <FormMessage className="text-xs" />
+                            </FormItem>
+                          )}
+                        />
+                      </CardContent>
+                    </Card>
+                  </div>
+
+                  <Separator className="my-6" />
+
+                  {/* Section 2: Ticket Classification */}
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-3">
+                      <div className={cn("p-2.5 rounded-xl shadow-md", glassStyles.gradients.success)}>
+                        <Tag className="h-5 w-5 text-white" />
+                      </div>
+                      <div>
+                        <h2 className="text-lg font-bold text-foreground">2. Ticket Classification</h2>
+                        <p className="text-xs text-muted-foreground">
+                          Categorize the ticket and specify location for proper routing
+                        </p>
+                      </div>
+                    </div>
+
+                    <Card className={cn("rounded-2xl border-0 shadow-md", glassStyles.cards.primary)}>
+                      <CardContent className="pt-6 space-y-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                           <FormField
                             control={form.control}
-                            name="title"
+                            name="studioId"
                             render={({ field }) => (
                               <FormItem>
-                                <FormLabel className="text-sm font-medium">Title *</FormLabel>
-                                <FormControl>
-                                  <Input
-                                    placeholder="Brief summary of the issue"
-                                    className={cn(
-                                      "rounded-xl text-sm",
-                                      isFieldHighlighted("title") && "template-field-highlight"
-                                    )}
-                                    {...field}
-                                  />
-                                </FormControl>
+                                <FormLabel className="text-sm font-semibold flex items-center gap-2">
+                                  <MapPin className="h-4 w-4 text-purple-600" />
+                                  Location / Studio *
+                                </FormLabel>
+                                <Select onValueChange={field.onChange} value={field.value}>
+                                  <FormControl>
+                                    <SelectTrigger className="rounded-xl bg-background text-sm h-11">
+                                      <SelectValue placeholder={studiosLoading ? "Loading locations..." : "Select studio location"} />
+                                    </SelectTrigger>
+                                  </FormControl>
+                                  <SelectContent className="bg-popover border border-border z-50">
+                                    {studios.map((studio) => (
+                                      <SelectItem key={studio.id} value={studio.id} className="text-sm">
+                                        <span className="flex items-center gap-2">
+                                          <MapPin className="h-3.5 w-3.5 text-purple-600" />
+                                          {studio.name}
+                                        </span>
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                                <FormDescription className="text-xs flex items-start gap-1.5">
+                                  <MapPin className="h-3 w-3 mt-0.5 shrink-0" />
+                                  Which physical location is this ticket related to?
+                                </FormDescription>
+                                <FormMessage className="text-xs" />
+                              </FormItem>
+                            )}
+                          />
+
+                          <FormField
+                            control={form.control}
+                            name="categoryId"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel className="text-sm font-semibold flex items-center gap-2">
+                                  <Tag className="h-4 w-4 text-purple-600" />
+                                  Category *
+                                </FormLabel>
+                                <Select onValueChange={field.onChange} value={field.value}>
+                                  <FormControl>
+                                    <SelectTrigger className="rounded-xl bg-background text-sm h-11">
+                                      <SelectValue placeholder={categoriesLoading ? "Loading categories..." : "Select issue category"} />
+                                    </SelectTrigger>
+                                  </FormControl>
+                                  <SelectContent className="bg-popover border border-border z-50">
+                                    {categories.map((cat) => (
+                                      <SelectItem key={cat.id} value={cat.id} className="text-sm">
+                                        <span className="flex items-center gap-2">
+                                          <span
+                                            className="w-2.5 h-2.5 rounded-full"
+                                            style={{ backgroundColor: cat.color || '#3B82F6' }}
+                                          />
+                                          {cat.name}
+                                        </span>
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                                <FormDescription className="text-xs flex items-start gap-1.5">
+                                  <Tag className="h-3 w-3 mt-0.5 shrink-0" />
+                                  What type of issue is this? (billing, technical, service, etc.)
+                                </FormDescription>
                                 <FormMessage className="text-xs" />
                               </FormItem>
                             )}
                           />
                         </div>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          onClick={generateTitle}
-                          disabled={isGeneratingTitle || description.length < 10}
-                          className="rounded-xl text-sm h-10"
-                        >
-                          {isGeneratingTitle ? (
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                          ) : (
-                            <Sparkles className="h-4 w-4" />
-                          )}
-                          <span className="ml-2">Generate</span>
-                        </Button>
-                      </div>
-                    </CardContent>
-                  </Card>
-
-                  {/* Core Ticket Info */}
-                  <Card className={cn("rounded-2xl border-0", glassStyles.cards.primary)}>
-                    <CardHeader className="pb-3">
-                      <CardTitle className="text-base font-semibold flex items-center gap-2">
-                        <Hash className="h-4 w-4 text-emerald-600" />
-                        Core Ticket Info
-                      </CardTitle>
-                      <CardDescription className="text-xs">
-                        Auto-generated fields. Department and Owner can be changed.
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-3">
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 p-3 bg-muted/30 rounded-xl">
-                        <div>
-                          <span className="text-xs text-muted-foreground">Ticket ID</span>
-                          <p className="font-mono font-semibold text-xs">{ticketNumber}</p>
-                        </div>
-                        <div>
-                          <span className="text-xs text-muted-foreground">Date & Time</span>
-                          <p className="font-medium text-xs">{currentDateTime}</p>
-                        </div>
-                        <div>
-                          <span className="text-xs text-muted-foreground">Reported By</span>
-                          <p className="font-medium text-xs truncate">{user?.email || 'Current User'}</p>
-                        </div>
-                        <div>
-                          <span className="text-xs text-muted-foreground">Status</span>
-                          <Badge variant="secondary" className="mt-1 text-xs">New</Badge>
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                        <FormField
-                          control={form.control}
-                          name="assignedDepartmentId"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel className="text-sm font-medium">Routing Department</FormLabel>
-                              <Select onValueChange={field.onChange} value={field.value}>
-                                <FormControl>
-                                  <SelectTrigger className="rounded-xl bg-background text-sm">
-                                    <SelectValue placeholder="Auto-assign or select..." />
-                                  </SelectTrigger>
-                                </FormControl>
-                                <SelectContent className="bg-popover border border-border z-50">
-                                  <SelectItem value="_auto" className="text-sm">Auto-assign (AI routing)</SelectItem>
-                                  {departments.map((dept) => (
-                                    <SelectItem key={dept.id} value={dept.id} className="text-sm">
-                                      {dept.name}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                              <FormDescription className="text-xs">
-                                Leave empty for AI-based routing
-                              </FormDescription>
-                              <FormMessage className="text-xs" />
-                            </FormItem>
-                          )}
-                        />
-
-                        <FormField
-                          control={form.control}
-                          name="assignedToUserId"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel className="text-sm font-medium">Assigned To / Owner</FormLabel>
-                              <Select onValueChange={field.onChange} value={field.value}>
-                                <FormControl>
-                                  <SelectTrigger className="rounded-xl bg-background text-sm">
-                                    <SelectValue placeholder="Auto-assign or select..." />
-                                  </SelectTrigger>
-                                </FormControl>
-                                <SelectContent className="bg-popover border border-border z-50">
-                                  <SelectItem value="_auto" className="text-sm">Auto-assign</SelectItem>
-                                  {users.map((u) => (
-                                    <SelectItem key={u.id} value={u.id} className="text-sm">
-                                      {u.displayName || u.email}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                              <FormDescription className="text-xs">
-                                Leave empty for auto-assignment
-                              </FormDescription>
-                              <FormMessage className="text-xs" />
-                            </FormItem>
-                          )}
-                        />
-                      </div>
-                    </CardContent>
-                  </Card>
-
-                  {/* Classification & Location */}
-                  <Card className={cn("rounded-2xl border-0", glassStyles.cards.primary)}>
-                    <CardHeader className="pb-3">
-                      <CardTitle className="text-base font-semibold flex items-center gap-2">
-                        <AlertCircle className="h-4 w-4 text-amber-600" />
-                        Classification & Location
-                      </CardTitle>
-                      <CardDescription className="text-xs">Categorize and assign the ticket</CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-3">
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                        <FormField
-                          control={form.control}
-                          name="categoryId"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel className="text-sm font-medium">Category *</FormLabel>
-                              <Select onValueChange={field.onChange} value={field.value}>
-                                <FormControl>
-                                  <SelectTrigger className="rounded-xl bg-background text-sm">
-                                    <SelectValue placeholder={categoriesLoading ? "Loading..." : "Select category"} />
-                                  </SelectTrigger>
-                                </FormControl>
-                                <SelectContent className="bg-popover border border-border z-50">
-                                  {categories.map((cat) => (
-                                    <SelectItem key={cat.id} value={cat.id} className="text-sm">
-                                      <span className="flex items-center gap-2">
-                                        <span
-                                          className="w-2 h-2 rounded-full"
-                                          style={{ backgroundColor: cat.color || '#3B82F6' }}
-                                        />
-                                        {cat.name}
-                                      </span>
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                              <FormMessage className="text-xs" />
-                            </FormItem>
-                          )}
-                        />
 
                         {selectedCategoryId && subcategories.length > 0 && (
                           <FormField
@@ -1399,11 +1429,14 @@ export default function TicketCreationPremium() {
                             name="subcategoryId"
                             render={({ field }) => (
                               <FormItem>
-                                <FormLabel className="text-sm font-medium">Subcategory</FormLabel>
+                                <FormLabel className="text-sm font-semibold flex items-center gap-2">
+                                  <Tag className="h-4 w-4 text-purple-600" />
+                                  Subcategory (Optional)
+                                </FormLabel>
                                 <Select onValueChange={field.onChange} value={field.value}>
                                   <FormControl>
-                                    <SelectTrigger className="rounded-xl bg-background text-sm">
-                                      <SelectValue placeholder="Select subcategory" />
+                                    <SelectTrigger className="rounded-xl bg-background text-sm h-11">
+                                      <SelectValue placeholder="Select a more specific category" />
                                     </SelectTrigger>
                                   </FormControl>
                                   <SelectContent className="bg-popover border border-border z-50">
@@ -1414,617 +1447,795 @@ export default function TicketCreationPremium() {
                                     ))}
                                   </SelectContent>
                                 </Select>
+                                <FormDescription className="text-xs">
+                                  Narrow down the category for better routing and SLA management
+                                </FormDescription>
                                 <FormMessage className="text-xs" />
                               </FormItem>
                             )}
                           />
                         )}
 
-                        <FormField
-                          control={form.control}
-                          name="studioId"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel className="text-sm font-medium">Location / Studio *</FormLabel>
-                              <Select onValueChange={field.onChange} value={field.value}>
-                                <FormControl>
-                                  <SelectTrigger className="rounded-xl bg-background text-sm">
-                                    <SelectValue placeholder={studiosLoading ? "Loading..." : "Select location"} />
-                                  </SelectTrigger>
-                                </FormControl>
-                                <SelectContent className="bg-popover border border-border z-50">
-                                  {studios.map((studio) => (
-                                    <SelectItem key={studio.id} value={studio.id} className="text-sm">
+                        {/* Dynamic Custom Fields */}
+                        {selectedCategoryId && dynamicFields.length > 0 && (
+                          <div className="pt-4 border-t border-border/50">
+                            <div className="flex items-center gap-2 mb-4">
+                              <Zap className="h-4 w-4 text-purple-600" />
+                              <h3 className="text-sm font-semibold">Category-Specific Fields</h3>
+                              {fieldsLoading && <Loader2 className="h-4 w-4 animate-spin text-purple-600" />}
+                            </div>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              {dynamicFields.map(renderDynamicField)}
+                            </div>
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  </div>
+
+                  <Separator className="my-6" />
+
+                  {/* Section 3: Assignment & Routing */}
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-3">
+                      <div className={cn("p-2.5 rounded-xl shadow-md bg-gradient-to-br from-green-500 to-emerald-600")}>
+                        <Users className="h-5 w-5 text-white" />
+                      </div>
+                      <div>
+                        <h2 className="text-lg font-bold text-foreground">3. Assignment & Routing</h2>
+                        <p className="text-xs text-muted-foreground">
+                          Auto-assign or manually select department and owner
+                        </p>
+                      </div>
+                    </div>
+
+                    <Card className={cn("rounded-2xl border-0 shadow-md", glassStyles.cards.primary)}>
+                      <CardContent className="pt-6 space-y-4">
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 p-4 bg-gradient-to-br from-muted/40 to-muted/20 rounded-xl border border-border/50">
+                          <div>
+                            <span className="text-xs text-muted-foreground font-medium">Ticket ID</span>
+                            <p className="font-mono font-bold text-sm text-primary mt-1">{ticketNumber}</p>
+                          </div>
+                          <div>
+                            <span className="text-xs text-muted-foreground font-medium">Created</span>
+                            <p className="font-semibold text-xs mt-1">{currentDateTime}</p>
+                          </div>
+                          <div>
+                            <span className="text-xs text-muted-foreground font-medium">Reporter</span>
+                            <p className="font-semibold text-xs truncate mt-1">{user?.email || 'Current User'}</p>
+                          </div>
+                          <div>
+                            <span className="text-xs text-muted-foreground font-medium">Status</span>
+                            <Badge variant="secondary" className="mt-1 text-xs">New</Badge>
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <FormField
+                            control={form.control}
+                            name="assignedDepartmentId"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel className="text-sm font-semibold flex items-center gap-2">
+                                  <Building className="h-4 w-4 text-green-600" />
+                                  Department
+                                </FormLabel>
+                                <Select onValueChange={field.onChange} value={field.value}>
+                                  <FormControl>
+                                    <SelectTrigger className="rounded-xl bg-background text-sm h-11">
+                                      <SelectValue placeholder="Auto-assign based on category" />
+                                    </SelectTrigger>
+                                  </FormControl>
+                                  <SelectContent className="bg-popover border border-border z-50">
+                                    <SelectItem value="_auto" className="text-sm font-semibold">
                                       <span className="flex items-center gap-2">
-                                        <MapPin className="h-3 w-3" />
-                                        {studio.name}
+                                        <Sparkles className="h-3.5 w-3.5 text-purple-600" />
+                                        Auto-assign (AI Routing)
                                       </span>
                                     </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
+                                    {departments.map((dept) => (
+                                      <SelectItem key={dept.id} value={dept.id} className="text-sm">
+                                        {dept.name}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                                <FormDescription className="text-xs flex items-start gap-1.5">
+                                  <AlertCircle className="h-3 w-3 mt-0.5 shrink-0" />
+                                  AI will route based on category and description if left on auto
+                                </FormDescription>
+                                <FormMessage className="text-xs" />
+                              </FormItem>
+                            )}
+                          />
+
+                          <FormField
+                            control={form.control}
+                            name="assignedToUserId"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel className="text-sm font-semibold flex items-center gap-2">
+                                  <User className="h-4 w-4 text-green-600" />
+                                  Assigned To
+                                </FormLabel>
+                                <Select onValueChange={field.onChange} value={field.value}>
+                                  <FormControl>
+                                    <SelectTrigger className="rounded-xl bg-background text-sm h-11">
+                                      <SelectValue placeholder="Auto-assign to available member" />
+                                    </SelectTrigger>
+                                  </FormControl>
+                                  <SelectContent className="bg-popover border border-border z-50">
+                                    <SelectItem value="_auto" className="text-sm font-semibold">
+                                      <span className="flex items-center gap-2">
+                                        <Sparkles className="h-3.5 w-3.5 text-purple-600" />
+                                        Auto-assign
+                                      </span>
+                                    </SelectItem>
+                                    {users.map((u) => (
+                                      <SelectItem key={u.id} value={u.id} className="text-sm">
+                                        {u.displayName || u.email}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                                <FormDescription className="text-xs flex items-start gap-1.5">
+                                  <AlertCircle className="h-3 w-3 mt-0.5 shrink-0" />
+                                  Manually assign to specific team member or use auto-assignment
+                                </FormDescription>
+                                <FormMessage className="text-xs" />
+                              </FormItem>
+                            )}
+                          />
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </div>
+
+                  <Separator className="my-6" />
+
+                  {/* Section 4: Customer/Client Details */}
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-3">
+                      <div className={cn("p-2.5 rounded-xl shadow-md bg-gradient-to-br from-orange-500 to-amber-600")}>
+                        <User className="h-5 w-5 text-white" />
+                      </div>
+                      <div>
+                        <h2 className="text-lg font-bold text-foreground">4. Customer/Client Details</h2>
+                        <p className="text-xs text-muted-foreground">
+                          Optional - Add if ticket involves a specific customer
+                        </p>
+                      </div>
+                    </div>
+
+                    <Collapsible open={clientDetailsOpen} onOpenChange={setClientDetailsOpen}>
+                      <Card className={cn("rounded-2xl border-0 shadow-md", glassStyles.cards.primary)}>
+                        <CollapsibleTrigger asChild>
+                          <CardHeader className="cursor-pointer hover:bg-muted/30 transition-all rounded-t-2xl pb-4">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-3">
+                                <div className={cn(
+                                  "p-2 rounded-lg transition-all",
+                                  clientDetailsOpen ? "bg-orange-100 dark:bg-orange-900/20" : "bg-muted/50"
+                                )}>
+                                  <User className={cn(
+                                    "h-4 w-4 transition-colors",
+                                    clientDetailsOpen ? "text-orange-600" : "text-muted-foreground"
+                                  )} />
+                                </div>
+                                <div>
+                                  <CardTitle className="text-base font-semibold flex items-center gap-2">
+                                    Client Information
+                                    <Badge variant="outline" className="text-xs font-normal">
+                                      {clientDetailsOpen ? "Expanded" : "Click to expand"}
+                                    </Badge>
+                                  </CardTitle>
+                                  {!clientDetailsOpen && (
+                                    <CardDescription className="text-xs mt-1">
+                                      Click to add customer details and contact information
+                                    </CardDescription>
+                                  )}
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                {clientDetailsOpen ? (
+                                  <ChevronUp className="h-5 w-5 text-muted-foreground" />
+                                ) : (
+                                  <ChevronDown className="h-5 w-5 text-muted-foreground" />
+                                )}
+                              </div>
+                            </div>
+                          </CardHeader>
+                        </CollapsibleTrigger>
+                        <CollapsibleContent>
+                          <CardContent className="space-y-4 pt-0 pb-6">
+                            <div className="bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-xl p-3">
+                              <div className="flex items-start gap-2">
+                                <Sparkles className="h-4 w-4 text-blue-600 mt-0.5 shrink-0" />
+                                <div className="text-xs text-blue-900 dark:text-blue-100">
+                                  <p className="font-semibold mb-1">Quick Search Available</p>
+                                  <p>Search Momence database below or enter details manually</p>
+                                </div>
+                              </div>
+                            </div>
+
+                            <MomenceClientSearch
+                              onClientSelect={handleMomenceClientSelect}
+                              selectedClient={selectedMomenceClient}
+                            />
+
+                            <Separator />
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              <FormField
+                                control={form.control}
+                                name="customerName"
+                                render={({ field }) => (
+                                  <FormItem>
+                                    <FormLabel className="text-sm font-semibold">Client Name *</FormLabel>
+                                    <FormControl>
+                                      <Input
+                                        placeholder="Full name (e.g., John Smith)"
+                                        className={cn(
+                                          "rounded-xl text-sm h-11",
+                                          isFieldHighlighted("customerName") && "template-field-highlight"
+                                        )}
+                                        {...field}
+                                      />
+                                    </FormControl>
+                                    <FormMessage className="text-xs" />
+                                  </FormItem>
+                                )}
+                              />
+                              <FormField
+                                control={form.control}
+                                name="customerEmail"
+                                render={({ field }) => (
+                                  <FormItem>
+                                    <FormLabel className="text-sm font-semibold">Email Address</FormLabel>
+                                    <FormControl>
+                                      <Input
+                                        type="email"
+                                        placeholder="customer@email.com"
+                                        className={cn(
+                                          "rounded-xl text-sm h-11",
+                                          isFieldHighlighted("customerEmail") && "template-field-highlight"
+                                        )}
+                                        {...field}
+                                      />
+                                    </FormControl>
+                                    <FormMessage className="text-xs" />
+                                  </FormItem>
+                                )}
+                              />
+                              <FormField
+                                control={form.control}
+                                name="customerPhone"
+                                render={({ field }) => (
+                                  <FormItem>
+                                    <FormLabel className="text-sm font-semibold">Phone Number</FormLabel>
+                                    <FormControl>
+                                      <Input
+                                        type="tel"
+                                        placeholder="+91 XXXXX XXXXX"
+                                        className={cn(
+                                          "rounded-xl text-sm h-11",
+                                          isFieldHighlighted("customerPhone") && "template-field-highlight"
+                                        )}
+                                        {...field}
+                                      />
+                                    </FormControl>
+                                    <FormMessage className="text-xs" />
+                                  </FormItem>
+                                )}
+                              />
+                              <FormField
+                                control={form.control}
+                                name="customerMembershipId"
+                                render={({ field }) => (
+                                  <FormItem>
+                                    <FormLabel className="text-sm font-semibold">Membership ID</FormLabel>
+                                    <FormControl>
+                                      <Input placeholder="Member ID" className="rounded-xl text-sm h-11" {...field} />
+                                    </FormControl>
+                                    <FormMessage className="text-xs" />
+                                  </FormItem>
+                                )}
+                              />
+                              <FormField
+                                control={form.control}
+                                name="customerStatus"
+                                render={({ field }) => (
+                                  <FormItem>
+                                    <FormLabel className="text-sm font-semibold">Client Status</FormLabel>
+                                    <Select onValueChange={field.onChange} value={field.value}>
+                                      <FormControl>
+                                        <SelectTrigger className="rounded-xl bg-background text-sm h-11">
+                                          <SelectValue placeholder="Select status" />
+                                        </SelectTrigger>
+                                      </FormControl>
+                                      <SelectContent className="bg-popover border border-border z-50">
+                                        {CLIENT_STATUSES.map((status) => (
+                                          <SelectItem key={status.value} value={status.value} className="text-sm">
+                                            {status.label}
+                                          </SelectItem>
+                                        ))}
+                                      </SelectContent>
+                                    </Select>
+                                    <FormMessage className="text-xs" />
+                                  </FormItem>
+                                )}
+                              />
+                              <FormField
+                                control={form.control}
+                                name="clientMood"
+                                render={({ field }) => (
+                                  <FormItem>
+                                    <FormLabel className="text-sm font-semibold">Client Mood</FormLabel>
+                                    <Select onValueChange={field.onChange} value={field.value}>
+                                      <FormControl>
+                                        <SelectTrigger className="rounded-xl bg-background text-sm h-11">
+                                          <SelectValue placeholder="How was the client feeling?" />
+                                        </SelectTrigger>
+                                      </FormControl>
+                                      <SelectContent className="bg-popover border border-border z-50">
+                                        {CLIENT_MOODS.map((mood) => (
+                                          <SelectItem key={mood.value} value={mood.value} className="text-sm">
+                                            {mood.label}
+                                          </SelectItem>
+                                        ))}
+                                      </SelectContent>
+                                    </Select>
+                                    <FormDescription className="text-xs">
+                                      Helps prioritize customer experience issues
+                                    </FormDescription>
+                                    <FormMessage className="text-xs" />
+                                  </FormItem>
+                                )}
+                              />
+                            </div>
+                          </CardContent>
+                        </CollapsibleContent>
+                      </Card>
+                    </Collapsible>
+                  </div>
+
+                  <Separator className="my-6" />
+
+                  {/* Section 5: Class & Trainer Information */}
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-3">
+                      <div className={cn("p-2.5 rounded-xl shadow-md bg-gradient-to-br from-pink-500 to-rose-600")}>
+                        <Calendar className="h-5 w-5 text-white" />
+                      </div>
+                      <div>
+                        <h2 className="text-lg font-bold text-foreground">5. Class & Trainer Information</h2>
+                        <p className="text-xs text-muted-foreground">
+                          Optional - Add if ticket relates to a specific class or trainer
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Class Details */}
+                    <Collapsible open={classDetailsOpen} onOpenChange={setClassDetailsOpen}>
+                      <Card className={cn("rounded-2xl border-0 shadow-md", glassStyles.cards.primary)}>
+                        <CollapsibleTrigger asChild>
+                          <CardHeader className="cursor-pointer hover:bg-muted/30 transition-all rounded-t-2xl pb-4">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-3">
+                                <div className={cn(
+                                  "p-2 rounded-lg transition-all",
+                                  classDetailsOpen ? "bg-pink-100 dark:bg-pink-900/20" : "bg-muted/50"
+                                )}>
+                                  <Calendar className={cn(
+                                    "h-4 w-4 transition-colors",
+                                    classDetailsOpen ? "text-pink-600" : "text-muted-foreground"
+                                  )} />
+                                </div>
+                                <div>
+                                  <CardTitle className="text-base font-semibold flex items-center gap-2">
+                                    Class Details
+                                    <Badge variant="outline" className="text-xs font-normal">
+                                      {classDetailsOpen ? "Expanded" : "Click to expand"}
+                                    </Badge>
+                                  </CardTitle>
+                                  {!classDetailsOpen && (
+                                    <CardDescription className="text-xs mt-1">
+                                      Click to add class information and schedule
+                                    </CardDescription>
+                                  )}
+                                </div>
+                              </div>
+                              {classDetailsOpen ? (
+                                <ChevronUp className="h-5 w-5 text-muted-foreground" />
+                              ) : (
+                                <ChevronDown className="h-5 w-5 text-muted-foreground" />
+                              )}
+                            </div>
+                          </CardHeader>
+                        </CollapsibleTrigger>
+                        <CollapsibleContent>
+                          <CardContent className="space-y-4 pt-0 pb-6">
+                            <ClassSelector
+                              onClassSelect={handleMomenceSessionSelect}
+                              selectedClass={selectedMomenceSession}
+                              label="Search Momence Classes"
+                              placeholder="Search: Class Name | Date | Time | Teacher"
+                            />
+
+                            <Separator />
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              <FormField
+                                control={form.control}
+                                name="className"
+                                render={({ field }) => (
+                                  <FormItem>
+                                    <FormLabel className="text-sm font-semibold">Class Name *</FormLabel>
+                                    <Select onValueChange={field.onChange} value={field.value}>
+                                      <FormControl>
+                                        <SelectTrigger
+                                          className={cn(
+                                            "rounded-xl bg-background text-sm h-11",
+                                            isFieldHighlighted("className") && "template-field-highlight"
+                                          )}
+                                        >
+                                          <SelectValue placeholder="Select class type" />
+                                        </SelectTrigger>
+                                      </FormControl>
+                                      <SelectContent className="bg-popover border border-border z-50 max-h-60">
+                                        {CLASSES.map((cls) => (
+                                          <SelectItem key={cls} value={cls} className="text-sm">{cls}</SelectItem>
+                                        ))}
+                                      </SelectContent>
+                                    </Select>
+                                    <FormMessage className="text-xs" />
+                                  </FormItem>
+                                )}
+                              />
+                              <FormField
+                                control={form.control}
+                                name="classDateTime"
+                                render={({ field }) => (
+                                  <FormItem>
+                                    <FormLabel className="text-sm font-semibold">Class Date & Time</FormLabel>
+                                    <FormControl>
+                                      <Input
+                                        type="datetime-local"
+                                        className={cn(
+                                          "rounded-xl text-sm h-11",
+                                          isFieldHighlighted("classDateTime") && "template-field-highlight"
+                                        )}
+                                        {...field}
+                                      />
+                                    </FormControl>
+                                    <FormMessage className="text-xs" />
+                                  </FormItem>
+                                )}
+                              />
+                            </div>
+                          </CardContent>
+                        </CollapsibleContent>
+                      </Card>
+                    </Collapsible>
+
+                    {/* Trainer Details */}
+                    <Collapsible open={trainerDetailsOpen} onOpenChange={setTrainerDetailsOpen}>
+                      <Card className={cn("rounded-2xl border-0 shadow-md", glassStyles.cards.primary)}>
+                        <CollapsibleTrigger asChild>
+                          <CardHeader className="cursor-pointer hover:bg-muted/30 transition-all rounded-t-2xl pb-4">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-3">
+                                <div className={cn(
+                                  "p-2 rounded-lg transition-all",
+                                  trainerDetailsOpen ? "bg-pink-100 dark:bg-pink-900/20" : "bg-muted/50"
+                                )}>
+                                  <Dumbbell className={cn(
+                                    "h-4 w-4 transition-colors",
+                                    trainerDetailsOpen ? "text-pink-600" : "text-muted-foreground"
+                                  )} />
+                                </div>
+                                <div>
+                                  <CardTitle className="text-base font-semibold flex items-center gap-2">
+                                    Trainer Details
+                                    <Badge variant="outline" className="text-xs font-normal">
+                                      {trainerDetailsOpen ? "Expanded" : "Click to expand"}
+                                    </Badge>
+                                  </CardTitle>
+                                  {!trainerDetailsOpen && (
+                                    <CardDescription className="text-xs mt-1">
+                                      Click to add trainer information and contact details
+                                    </CardDescription>
+                                  )}
+                                </div>
+                              </div>
+                              {trainerDetailsOpen ? (
+                                <ChevronUp className="h-5 w-5 text-muted-foreground" />
+                              ) : (
+                                <ChevronDown className="h-5 w-5 text-muted-foreground" />
+                              )}
+                            </div>
+                          </CardHeader>
+                        </CollapsibleTrigger>
+                        <CollapsibleContent>
+                          <CardContent className="space-y-4 pt-0 pb-6">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              <FormField
+                                control={form.control}
+                                name="trainerName"
+                                render={({ field }) => (
+                                  <FormItem className="md:col-span-2">
+                                    <FormLabel className="text-sm font-semibold">Trainer Name *</FormLabel>
+                                    <Select onValueChange={field.onChange} value={field.value}>
+                                      <FormControl>
+                                        <SelectTrigger
+                                          className={cn(
+                                            "rounded-xl bg-background text-sm h-11",
+                                            isFieldHighlighted("trainerName") && "template-field-highlight"
+                                          )}
+                                        >
+                                          <SelectValue placeholder="Select trainer" />
+                                        </SelectTrigger>
+                                      </FormControl>
+                                      <SelectContent className="bg-popover border border-border z-50 max-h-60">
+                                        {TRAINERS.map((trainer) => (
+                                          <SelectItem key={trainer.id} value={trainer.name} className="text-sm">
+                                            {trainer.name}
+                                          </SelectItem>
+                                        ))}
+                                      </SelectContent>
+                                    </Select>
+                                    <FormMessage className="text-xs" />
+                                  </FormItem>
+                                )}
+                              />
+                              <FormField
+                                control={form.control}
+                                name="trainerEmail"
+                                render={({ field }) => (
+                                  <FormItem>
+                                    <FormLabel className="text-sm font-semibold">Trainer Email</FormLabel>
+                                    <FormControl>
+                                      <Input
+                                        type="email"
+                                        placeholder="trainer@example.com"
+                                        className={cn(
+                                          "rounded-xl text-sm h-11",
+                                          isFieldHighlighted("trainerEmail") && "template-field-highlight"
+                                        )}
+                                        {...field}
+                                      />
+                                    </FormControl>
+                                    <FormMessage className="text-xs" />
+                                  </FormItem>
+                                )}
+                              />
+                              <FormField
+                                control={form.control}
+                                name="trainerPhone"
+                                render={({ field }) => (
+                                  <FormItem>
+                                    <FormLabel className="text-sm font-semibold">Trainer Phone</FormLabel>
+                                    <FormControl>
+                                      <Input
+                                        type="tel"
+                                        placeholder="+91 XXXXX XXXXX"
+                                        className={cn(
+                                          "rounded-xl text-sm h-11",
+                                          isFieldHighlighted("trainerPhone") && "template-field-highlight"
+                                        )}
+                                        {...field}
+                                      />
+                                    </FormControl>
+                                    <FormMessage className="text-xs" />
+                                  </FormItem>
+                                )}
+                              />
+                            </div>
+                            <div className="bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded-xl p-3">
+                              <div className="flex items-start gap-2">
+                                <AlertCircle className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" />
+                                <p className="text-xs text-amber-900 dark:text-amber-100">
+                                  When adding trainer details, name is required and at least one contact method (email or phone) must be provided
+                                </p>
+                              </div>
+                            </div>
+                          </CardContent>
+                        </CollapsibleContent>
+                      </Card>
+                    </Collapsible>
+                  </div>
+
+                  <Separator className="my-6" />
+
+                  {/* Section 6: Additional Details & Attachments */}
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-3">
+                      <div className={cn("p-2.5 rounded-xl shadow-md bg-gradient-to-br from-teal-500 to-cyan-600")}>
+                        <Clock className="h-5 w-5 text-white" />
+                      </div>
+                      <div>
+                        <h2 className="text-lg font-bold text-foreground">6. Additional Details & Attachments</h2>
+                        <p className="text-xs text-muted-foreground">
+                          Optional - Add internal notes, incident timing, and supporting files
+                        </p>
+                      </div>
+                    </div>
+
+                    <Card className={cn("rounded-2xl border-0 shadow-md", glassStyles.cards.primary)}>
+                      <CardContent className="pt-6 space-y-4">
+                        <FormField
+                          control={form.control}
+                          name="internalNotes"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel className="text-sm font-semibold flex items-center gap-2">
+                                <FileText className="h-4 w-4 text-teal-600" />
+                                Internal Notes (Staff Only)
+                              </FormLabel>
+                              <FormControl>
+                                <Textarea
+                                  placeholder="Add any internal context, background info, or action items that staff should know..."
+                                  className="min-h-24 rounded-xl text-sm resize-none"
+                                  {...field}
+                                />
+                              </FormControl>
+                              <FormDescription className="text-xs flex items-start gap-1.5">
+                                <AlertCircle className="h-3 w-3 mt-0.5 shrink-0" />
+                                These notes are private and won't be shared with customers
+                              </FormDescription>
                               <FormMessage className="text-xs" />
                             </FormItem>
                           )}
                         />
-                      </div>
 
-                      <FormField
-                        control={form.control}
-                        name="priority"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel className="text-sm font-medium">Priority Level</FormLabel>
-                            <FormControl>
-                              <RadioGroup
-                                onValueChange={field.onChange}
-                                value={field.value}
-                                className="grid grid-cols-2 md:grid-cols-4 gap-2"
-                              >
-                                {Object.entries(PRIORITIES).map(([value, config]) => (
-                                  <label
-                                    key={value}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <FormField
+                            control={form.control}
+                            name="incidentDateTime"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel className="text-sm font-semibold flex items-center gap-2">
+                                  <Clock className="h-4 w-4 text-teal-600" />
+                                  Incident Date & Time
+                                </FormLabel>
+                                <FormControl>
+                                  <Input
+                                    type="datetime-local"
                                     className={cn(
-                                      "flex items-center justify-center p-2 rounded-xl cursor-pointer transition-all border-2",
-                                      field.value === value
-                                        ? "border-primary bg-primary/10"
-                                        : "border-border hover:border-primary/30"
+                                      "rounded-xl text-sm h-11",
+                                      isFieldHighlighted("incidentDateTime") && "template-field-highlight"
                                     )}
-                                  >
-                                    <RadioGroupItem value={value} className="sr-only" />
-                                    <span className={cn(
-                                      "text-xs font-medium",
-                                      field.value === value ? "text-primary" : "text-muted-foreground"
-                                    )}>
-                                      {config.label}
-                                    </span>
-                                  </label>
-                                ))}
-                              </RadioGroup>
-                            </FormControl>
-                            <FormMessage className="text-xs" />
-                          </FormItem>
-                        )}
-                      />
-                    </CardContent>
-                  </Card>
-
-                  {/* Dynamic Custom Fields */}
-                  {selectedCategoryId && (
-                    <Card className={cn("rounded-2xl border-0", glassStyles.cards.primary)}>
-                      <CardHeader className="pb-3">
-                        <CardTitle className="text-base font-semibold flex items-center gap-2">
-                          <Zap className="h-4 w-4 text-primary" />
-                          Dynamic Custom Fields
-                          {fieldsLoading && <Loader2 className="h-4 w-4 animate-spin text-primary" />}
-                        </CardTitle>
-                        <CardDescription className="text-xs">
-                          {dynamicFields.length > 0
-                            ? "Category-specific fields to help resolve this ticket"
-                            : subcategories.length > 0 && !selectedSubcategoryId
-                              ? "Select a subcategory above to see additional fields"
-                              : "No additional fields for this category"
-                          }
-                        </CardDescription>
-                      </CardHeader>
-                      {dynamicFields.length > 0 && (
-                        <CardContent className="pt-0">
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-3 bg-muted/20 rounded-xl border border-border/50">
-                            {dynamicFields.map(renderDynamicField)}
-                          </div>
-                        </CardContent>
-                      )}
-                    </Card>
-                  )}
-
-                  {/* Client Details Module */}
-                  <Collapsible open={clientDetailsOpen} onOpenChange={setClientDetailsOpen}>
-                    <Card className={cn("rounded-2xl border-0", glassStyles.cards.primary)}>
-                      <CollapsibleTrigger asChild>
-                        <CardHeader className="cursor-pointer hover:bg-muted/30 transition-colors rounded-t-2xl pb-3">
-                          <div className="flex items-center justify-between">
-                            <CardTitle className="text-base font-semibold flex items-center gap-2">
-                              <User className="h-4 w-4 text-primary" />
-                              Client Details Module
-                              <Badge variant="outline" className="text-xs">Optional</Badge>
-                            </CardTitle>
-                            {clientDetailsOpen ? (
-                              <ChevronUp className="h-4 w-4 text-muted-foreground" />
-                            ) : (
-                              <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                                    {...field}
+                                  />
+                                </FormControl>
+                                <FormDescription className="text-xs">
+                                  When did this actually happen? (defaults to now)
+                                </FormDescription>
+                                <FormMessage className="text-xs" />
+                              </FormItem>
                             )}
-                          </div>
-                          {clientDetailsOpen && (
-                            <CardDescription className="text-xs">
-                              Search Momence or enter client details manually
-                            </CardDescription>
-                          )}
-                        </CardHeader>
-                      </CollapsibleTrigger>
-                      <CollapsibleContent>
-                        <CardContent className="space-y-3 pt-0">
-                          <MomenceClientSearch
-                            onClientSelect={handleMomenceClientSelect}
-                            selectedClient={selectedMomenceClient}
                           />
 
-                          <Separator />
-
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                            <FormField
-                              control={form.control}
-                              name="customerName"
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormLabel className="text-sm font-medium">Client Name *</FormLabel>
+                          <FormField
+                            control={form.control}
+                            name="source"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel className="text-sm font-semibold flex items-center gap-2">
+                                  <Send className="h-4 w-4 text-teal-600" />
+                                  Ticket Source
+                                </FormLabel>
+                                <Select onValueChange={field.onChange} value={field.value}>
                                   <FormControl>
-                                    <Input
-                                      placeholder="Full name"
-                                      className={cn(
-                                        "rounded-xl text-sm",
-                                        isFieldHighlighted("customerName") && "template-field-highlight"
-                                      )}
-                                      {...field}
-                                    />
+                                    <SelectTrigger className="rounded-xl bg-background text-sm h-11">
+                                      <SelectValue placeholder="How was this reported?" />
+                                    </SelectTrigger>
                                   </FormControl>
-                                  <FormMessage className="text-xs" />
-                                </FormItem>
-                              )}
-                            />
-                            <FormField
-                              control={form.control}
-                              name="customerEmail"
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormLabel className="text-sm font-medium">Email</FormLabel>
-                                  <FormControl>
-                                    <Input
-                                      type="email"
-                                      placeholder="email@example.com"
-                                      className={cn(
-                                        "rounded-xl text-sm",
-                                        isFieldHighlighted("customerEmail") && "template-field-highlight"
-                                      )}
-                                      {...field}
-                                    />
-                                  </FormControl>
-                                  <FormMessage className="text-xs" />
-                                </FormItem>
-                              )}
-                            />
-                            <FormField
-                              control={form.control}
-                              name="customerPhone"
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormLabel className="text-sm font-medium">Phone</FormLabel>
-                                  <FormControl>
-                                    <Input
-                                      type="tel"
-                                      placeholder="+91 XXXXX XXXXX"
-                                      className={cn(
-                                        "rounded-xl text-sm",
-                                        isFieldHighlighted("customerPhone") && "template-field-highlight"
-                                      )}
-                                      {...field}
-                                    />
-                                  </FormControl>
-                                  <FormMessage className="text-xs" />
-                                </FormItem>
-                              )}
-                            />
-                            <FormField
-                              control={form.control}
-                              name="customerMembershipId"
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormLabel className="text-sm font-medium">Membership ID</FormLabel>
-                                  <FormControl>
-                                    <Input placeholder="Member ID" className="rounded-xl text-sm" {...field} />
-                                  </FormControl>
-                                  <FormMessage className="text-xs" />
-                                </FormItem>
-                              )}
-                            />
-                            <FormField
-                              control={form.control}
-                              name="customerStatus"
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormLabel className="text-sm font-medium">Client Status</FormLabel>
-                                  <Select onValueChange={field.onChange} value={field.value}>
-                                    <FormControl>
-                                      <SelectTrigger className="rounded-xl bg-background text-sm">
-                                        <SelectValue placeholder="Select status" />
-                                      </SelectTrigger>
-                                    </FormControl>
-                                    <SelectContent className="bg-popover border border-border z-50">
-                                      {CLIENT_STATUSES.map((status) => (
-                                        <SelectItem key={status.value} value={status.value} className="text-sm">
-                                          {status.label}
-                                        </SelectItem>
-                                      ))}
-                                    </SelectContent>
-                                  </Select>
-                                  <FormMessage className="text-xs" />
-                                </FormItem>
-                              )}
-                            />
-                            <FormField
-                              control={form.control}
-                              name="clientMood"
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormLabel className="text-sm font-medium">Client Mood</FormLabel>
-                                  <Select onValueChange={field.onChange} value={field.value}>
-                                    <FormControl>
-                                      <SelectTrigger className="rounded-xl bg-background text-sm">
-                                        <SelectValue placeholder="How was the client feeling?" />
-                                      </SelectTrigger>
-                                    </FormControl>
-                                    <SelectContent className="bg-popover border border-border z-50">
-                                      {CLIENT_MOODS.map((mood) => (
-                                        <SelectItem key={mood.value} value={mood.value} className="text-sm">
-                                          {mood.label}
-                                        </SelectItem>
-                                      ))}
-                                    </SelectContent>
-                                  </Select>
-                                  <FormMessage className="text-xs" />
-                                </FormItem>
-                              )}
-                            />
-                          </div>
-                        </CardContent>
-                      </CollapsibleContent>
-                    </Card>
-                  </Collapsible>
-
-                  {/* Class Details Module */}
-                  <Collapsible open={classDetailsOpen} onOpenChange={setClassDetailsOpen}>
-                    <Card className={cn("rounded-2xl border-0", glassStyles.cards.primary)}>
-                      <CollapsibleTrigger asChild>
-                        <CardHeader className="cursor-pointer hover:bg-muted/30 transition-colors rounded-t-2xl pb-3">
-                          <div className="flex items-center justify-between">
-                            <CardTitle className="text-base font-semibold flex items-center gap-2">
-                              <Calendar className="h-4 w-4 text-primary" />
-                              Class Details Module
-                              <Badge variant="outline" className="text-xs">Optional</Badge>
-                            </CardTitle>
-                            {classDetailsOpen ? (
-                              <ChevronUp className="h-4 w-4 text-muted-foreground" />
-                            ) : (
-                              <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                                  <SelectContent className="bg-popover border border-border z-50">
+                                    <SelectItem value="in-person" className="text-sm">In Person</SelectItem>
+                                    <SelectItem value="phone" className="text-sm">Phone Call</SelectItem>
+                                    <SelectItem value="email" className="text-sm">Email</SelectItem>
+                                    <SelectItem value="momence" className="text-sm">Momence Platform</SelectItem>
+                                    <SelectItem value="chat" className="text-sm">Live Chat</SelectItem>
+                                    <SelectItem value="social-media" className="text-sm">Social Media</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                                <FormDescription className="text-xs">
+                                  How did you receive this issue report?
+                                </FormDescription>
+                                <FormMessage className="text-xs" />
+                              </FormItem>
                             )}
-                          </div>
-                          {classDetailsOpen && (
-                            <CardDescription className="text-xs">
-                              Select from Momence classes or enter manually
-                            </CardDescription>
-                          )}
-                        </CardHeader>
-                      </CollapsibleTrigger>
-                      <CollapsibleContent>
-                        <CardContent className="space-y-3 pt-0">
-                          <ClassSelector
-                            onClassSelect={handleMomenceSessionSelect}
-                            selectedClass={selectedMomenceSession}
-                            label="Select Class from Momence"
-                            placeholder="Search: Class Name | Date | Time | Teacher"
                           />
-
-                          <Separator />
-
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                            <FormField
-                              control={form.control}
-                              name="className"
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormLabel className="text-sm font-medium">Class Name *</FormLabel>
-                                  <Select onValueChange={field.onChange} value={field.value}>
-                                    <FormControl>
-                                      <SelectTrigger
-                                        className={cn(
-                                          "rounded-xl bg-background text-sm",
-                                          isFieldHighlighted("className") && "template-field-highlight"
-                                        )}
-                                      >
-                                        <SelectValue placeholder="Select class" />
-                                      </SelectTrigger>
-                                    </FormControl>
-                                    <SelectContent className="bg-popover border border-border z-50 max-h-60">
-                                      {CLASSES.map((cls) => (
-                                        <SelectItem key={cls} value={cls} className="text-sm">{cls}</SelectItem>
-                                      ))}
-                                    </SelectContent>
-                                  </Select>
-                                  <FormMessage className="text-xs" />
-                                </FormItem>
-                              )}
-                            />
-                            <FormField
-                              control={form.control}
-                              name="classDateTime"
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormLabel className="text-sm font-medium">Class Date & Time</FormLabel>
-                                  <FormControl>
-                                    <Input
-                                      type="datetime-local"
-                                      className={cn(
-                                        "rounded-xl text-sm",
-                                        isFieldHighlighted("classDateTime") && "template-field-highlight"
-                                      )}
-                                      {...field}
-                                    />
-                                  </FormControl>
-                                  <FormMessage className="text-xs" />
-                                </FormItem>
-                              )}
-                            />
-                          </div>
-                        </CardContent>
-                      </CollapsibleContent>
-                    </Card>
-                  </Collapsible>
-
-                  {/* Trainer Details Module */}
-                  <Collapsible open={trainerDetailsOpen} onOpenChange={setTrainerDetailsOpen}>
-                    <Card className={cn("rounded-2xl border-0", glassStyles.cards.primary)}>
-                      <CollapsibleTrigger asChild>
-                        <CardHeader className="cursor-pointer hover:bg-muted/30 transition-colors rounded-t-2xl pb-3">
-                          <div className="flex items-center justify-between">
-                            <CardTitle className="text-base font-semibold flex items-center gap-2">
-                              <Dumbbell className="h-4 w-4 text-primary" />
-                              Trainer Details Module
-                              <Badge variant="outline" className="text-xs">Optional</Badge>
-                            </CardTitle>
-                            {trainerDetailsOpen ? (
-                              <ChevronUp className="h-4 w-4 text-muted-foreground" />
-                            ) : (
-                              <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                            )}
-                          </div>
-                          {trainerDetailsOpen && (
-                            <CardDescription className="text-xs">
-                              Name and (email or phone) are required when this section is added
-                            </CardDescription>
-                          )}
-                        </CardHeader>
-                      </CollapsibleTrigger>
-                      <CollapsibleContent>
-                        <CardContent className="space-y-3 pt-0">
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                            <FormField
-                              control={form.control}
-                              name="trainerName"
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormLabel className="text-sm font-medium">Trainer Name *</FormLabel>
-                                  <Select onValueChange={field.onChange} value={field.value}>
-                                    <FormControl>
-                                      <SelectTrigger
-                                        className={cn(
-                                          "rounded-xl bg-background text-sm",
-                                          isFieldHighlighted("trainerName") && "template-field-highlight"
-                                        )}
-                                      >
-                                        <SelectValue placeholder="Select trainer" />
-                                      </SelectTrigger>
-                                    </FormControl>
-                                    <SelectContent className="bg-popover border border-border z-50 max-h-60">
-                                      {TRAINERS.map((trainer) => (
-                                        <SelectItem key={trainer.id} value={trainer.name} className="text-sm">
-                                          {trainer.name}
-                                        </SelectItem>
-                                      ))}
-                                    </SelectContent>
-                                  </Select>
-                                  <FormMessage className="text-xs" />
-                                </FormItem>
-                              )}
-                            />
-                            <FormField
-                              control={form.control}
-                              name="trainerEmail"
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormLabel className="text-sm font-medium">Trainer Email</FormLabel>
-                                  <FormControl>
-                                    <Input
-                                      type="email"
-                                      placeholder="trainer@example.com"
-                                      className={cn(
-                                        "rounded-xl text-sm",
-                                        isFieldHighlighted("trainerEmail") && "template-field-highlight"
-                                      )}
-                                      {...field}
-                                    />
-                                  </FormControl>
-                                  <FormMessage className="text-xs" />
-                                </FormItem>
-                              )}
-                            />
-                            <FormField
-                              control={form.control}
-                              name="trainerPhone"
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormLabel className="text-sm font-medium">Trainer Phone</FormLabel>
-                                  <FormControl>
-                                    <Input
-                                      type="tel"
-                                      placeholder="+91 XXXXX XXXXX"
-                                      className={cn(
-                                        "rounded-xl text-sm",
-                                        isFieldHighlighted("trainerPhone") && "template-field-highlight"
-                                      )}
-                                      {...field}
-                                    />
-                                  </FormControl>
-                                  <FormMessage className="text-xs" />
-                                </FormItem>
-                              )}
-                            />
-                          </div>
-                        </CardContent>
-                      </CollapsibleContent>
-                    </Card>
-                  </Collapsible>
-
-                  {/* Additional Info */}
-                  <Card className={cn("rounded-2xl border-0", glassStyles.cards.primary)}>
-                    <CardHeader className="pb-3">
-                      <CardTitle className="text-base font-semibold flex items-center gap-2">
-                        <FileText className="h-4 w-4 text-primary" />
-                        Additional Info
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-3">
-                      <FormField
-                        control={form.control}
-                        name="internalNotes"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel className="text-sm font-medium">Internal Notes</FormLabel>
-                            <FormControl>
-                              <Textarea
-                                placeholder="Any additional notes for internal reference..."
-                                className="min-h-20 rounded-xl text-sm"
-                                {...field}
-                              />
-                            </FormControl>
-                            <FormDescription className="text-xs">
-                              These notes are visible only to staff, not customers
-                            </FormDescription>
-                            <FormMessage className="text-xs" />
-                          </FormItem>
-                        )}
-                      />
-
-                      <FormField
-                        control={form.control}
-                        name="incidentDateTime"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel className="text-sm font-medium">Incident Date & Time</FormLabel>
-                            <FormControl>
-                              <Input
-                                type="datetime-local"
-                                className={cn(
-                                  "rounded-xl text-sm",
-                                  isFieldHighlighted("incidentDateTime") && "template-field-highlight"
-                                )}
-                                {...field}
-                              />
-                            </FormControl>
-                            <FormDescription className="text-xs">
-                              When did the incident actually occur?
-                            </FormDescription>
-                            <FormMessage className="text-xs" />
-                          </FormItem>
-                        )}
-                      />
-
-                      <FormField
-                        control={form.control}
-                        name="source"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel className="text-sm font-medium">Source</FormLabel>
-                            <Select onValueChange={field.onChange} value={field.value}>
-                              <FormControl>
-                                <SelectTrigger className="rounded-xl bg-background text-sm">
-                                  <SelectValue placeholder="Select source" />
-                                </SelectTrigger>
-                              </FormControl>
-                              <SelectContent className="bg-popover border border-border z-50">
-                                <SelectItem value="in-person" className="text-sm">In Person</SelectItem>
-                                <SelectItem value="phone" className="text-sm">Phone</SelectItem>
-                                <SelectItem value="email" className="text-sm">Email</SelectItem>
-                                <SelectItem value="momence" className="text-sm">Momence</SelectItem>
-                                <SelectItem value="chat" className="text-sm">Chat</SelectItem>
-                                <SelectItem value="social-media" className="text-sm">Social Media</SelectItem>
-                              </SelectContent>
-                            </Select>
-                            <FormMessage className="text-xs" />
-                          </FormItem>
-                        )}
-                      />
-                    </CardContent>
-                  </Card>
-
-                  {/* File Attachments */}
-                  <Card className={cn("rounded-2xl border-0", glassStyles.cards.primary)}>
-                    <CardHeader className="pb-3">
-                      <CardTitle className="text-base font-semibold flex items-center gap-2">
-                        <Paperclip className="h-4 w-4 text-primary" />
-                        File Attachments
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="border-2 border-dashed border-border rounded-xl p-4 text-center">
-                        <input
-                          type="file"
-                          multiple
-                          onChange={handleFileChange}
-                          className="hidden"
-                          id="file-upload"
-                          accept="image/*,.pdf,.doc,.docx"
-                        />
-                        <label
-                          htmlFor="file-upload"
-                          className="cursor-pointer flex flex-col items-center gap-2"
-                        >
-                          <Upload className="h-6 w-6 text-muted-foreground" />
-                          <span className="text-xs text-muted-foreground">
-                            Click to upload or drag files here
-                          </span>
-                          <span className="text-xs text-muted-foreground">
-                            Max 5 files (Images, PDF, DOC)
-                          </span>
-                        </label>
-                      </div>
-                      {attachedFiles.length > 0 && (
-                        <div className="mt-3 space-y-2">
-                          {attachedFiles.map((file, index) => (
-                            <div
-                              key={index}
-                              className="flex items-center justify-between p-2 bg-muted/50 rounded-lg"
-                            >
-                              <span className="text-xs truncate">{file.name}</span>
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => removeFile(index)}
-                                className="h-6 w-6"
-                              >
-                                <X className="h-3 w-3" />
-                              </Button>
-                            </div>
-                          ))}
                         </div>
-                      )}
-                    </CardContent>
-                  </Card>
 
-                  <div className="flex justify-between pt-4">
+                        <Separator />
+
+                        <div>
+                          <Label className="text-sm font-semibold flex items-center gap-2 mb-3">
+                            <Paperclip className="h-4 w-4 text-teal-600" />
+                            File Attachments
+                          </Label>
+                          <div className="border-2 border-dashed border-border hover:border-primary/50 transition-colors rounded-xl p-6 text-center bg-muted/20">
+                            <input
+                              type="file"
+                              multiple
+                              onChange={handleFileChange}
+                              className="hidden"
+                              id="file-upload"
+                              accept="image/*,.pdf,.doc,.docx"
+                            />
+                            <label
+                              htmlFor="file-upload"
+                              className="cursor-pointer flex flex-col items-center gap-3"
+                            >
+                              <div className="p-3 rounded-xl bg-primary/10">
+                                <Upload className="h-6 w-6 text-primary" />
+                              </div>
+                              <div>
+                                <p className="text-sm font-semibold text-foreground mb-1">
+                                  Upload Supporting Files
+                                </p>
+                                <p className="text-xs text-muted-foreground">
+                                  Click to browse or drag files here
+                                </p>
+                                <p className="text-xs text-muted-foreground mt-1">
+                                  Supports: Images, PDF, DOC (Max 5 files)
+                                </p>
+                              </div>
+                            </label>
+                          </div>
+                          {attachedFiles.length > 0 && (
+                            <div className="mt-4 space-y-2">
+                              <p className="text-xs font-semibold text-muted-foreground">
+                                Attached Files ({attachedFiles.length}/5)
+                              </p>
+                              {attachedFiles.map((file, index) => (
+                                <div
+                                  key={index}
+                                  className="flex items-center justify-between p-3 bg-muted/60 rounded-lg border border-border/50"
+                                >
+                                  <div className="flex items-center gap-2 flex-1 min-w-0">
+                                    <Paperclip className="h-4 w-4 text-muted-foreground shrink-0" />
+                                    <span className="text-sm truncate">{file.name}</span>
+                                    <span className="text-xs text-muted-foreground shrink-0">
+                                      ({(file.size / 1024).toFixed(1)} KB)
+                                    </span>
+                                  </div>
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => removeFile(index)}
+                                    className="h-7 w-7 shrink-0 hover:bg-destructive/10 hover:text-destructive"
+                                  >
+                                    <X className="h-3.5 w-3.5" />
+                                  </Button>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </div>
+
+                  {/* Navigation Buttons */}
+                  <div className="flex justify-between pt-6 pb-4">
                     <Button
                       type="button"
                       variant="outline"
                       onClick={handlePrevStep}
-                      className={cn("rounded-xl px-6 text-sm", glassStyles.buttons.secondary)}
+                      className={cn("rounded-xl px-8 text-sm h-11", glassStyles.buttons.secondary)}
                     >
-                      <ArrowLeft className="w-4 h-4 mr-2" /> Back
+                      <ArrowLeft className="w-4 h-4 mr-2" /> Back to Templates
                     </Button>
                     <Button
                       type="button"
                       onClick={handleNextStep}
-                      className={cn("rounded-xl px-6 text-sm", glassStyles.buttons.primary)}
+                      className={cn("rounded-xl px-8 text-sm h-11 shadow-lg", glassStyles.buttons.primary)}
                     >
-                      Review <ArrowRight className="w-4 h-4 ml-2" />
+                      Continue to Review <ArrowRight className="w-4 h-4 ml-2" />
                     </Button>
                   </div>
                 </motion.div>

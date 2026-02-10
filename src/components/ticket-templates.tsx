@@ -42,6 +42,18 @@ export interface TicketTemplate {
     highlighted?: boolean;
     placeholder?: boolean;
   }>;
+  priorityEscalationRules?: {
+    criticalIf?: string[];
+    highIf?: string[];
+    mediumIf?: string[];
+    lowIf?: string[];
+  };
+  automationRules?: {
+    autoAssignTo?: string;
+    autoTag?: string[];
+    autoNotify?: string[];
+    slaReminders?: number[];
+  };
 }
 
 export const TICKET_TEMPLATES: TicketTemplate[] = [
@@ -1810,6 +1822,212 @@ export const TICKET_TEMPLATES: TicketTemplate[] = [
       "If concern: create development plan with Training team",
       "Follow up with affected client if service was impacted"
     ]
+  },
+  {
+    id: "membership-freeze-cancel",
+    name: "Membership Freeze/Cancellation",
+    description: "Request to freeze, pause, or cancel membership",
+    icon: UserX,
+    category: "Customer Service",
+    subcategory: "Membership Management",
+    priority: "medium",
+    slaHours: 24,
+    suggestedTitle: "Membership Change Request - [Customer Name]",
+    suggestedDescription: `Customer requesting membership modification.
+
+👤 CUSTOMER DETAILS
+• Customer name: [name]
+• Membership ID: [ID]
+• Current membership type: [type]
+• Start date: [date]
+• Expiration date: [date]
+• Remaining sessions/credits: [amount]
+
+📋 REQUEST TYPE
+• Action requested: [Freeze/Pause/Cancel/Downgrade]
+• Effective date requested: [date]
+• Duration (if freeze): [weeks/months]
+
+💭 REASON FOR REQUEST
+• Primary reason: [Moving/Medical/Financial/Schedule/Dissatisfaction/Other]
+• Detailed explanation: [details]
+• Would they consider alternatives: [yes/no]
+
+💰 FINANCIAL IMPLICATIONS
+• Payments remaining: [amount]
+• Refund requested: [yes/no/partial]
+• Freeze fee applicable: [yes/no - amount]
+• Contract terms: [month-to-month/annual/other]
+
+🎯 RETENTION OPPORTUNITY
+• Retention offer made: [yes/no - details]
+• Customer response to offer: [accepted/declined/considering]
+• Win-back probability: [high/medium/low]
+• Follow-up scheduled: [date]`,
+    tags: ["membership", "cancellation", "freeze", "retention"],
+    color: "from-red-400 to-pink-500",
+    formFields: [
+      { fieldName: "title", value: "Membership Change Request - [Customer Name]", highlighted: false },
+      { fieldName: "description", value: `Customer requesting membership modification.
+
+👤 CUSTOMER DETAILS
+• Customer name: [name]
+• Membership ID: [ID]
+• Current membership type: [type]
+
+📋 REQUEST TYPE
+• Action requested: [Freeze/Pause/Cancel/Downgrade]
+• Effective date requested: [date]
+
+💭 REASON FOR REQUEST
+• Primary reason: [Moving/Medical/Financial/Schedule/Dissatisfaction/Other]
+
+🎯 RETENTION OPPORTUNITY
+• Retention offer made: [yes/no - details]
+• Customer response: [accepted/declined/considering]`, highlighted: false },
+      { fieldName: "priority", value: "medium", highlighted: false },
+      { fieldName: "source", value: "email", highlighted: false },
+      { fieldName: "customerName", value: "[CUSTOMER NAME]", highlighted: true, placeholder: true },
+      { fieldName: "customerEmail", value: "[CUSTOMER EMAIL]", highlighted: true, placeholder: true },
+      { fieldName: "customerPhone", value: "[CUSTOMER PHONE]", highlighted: true, placeholder: true },
+      { fieldName: "customerMembershipId", value: "[MEMBERSHIP ID]", highlighted: true, placeholder: true },
+      { fieldName: "tags", value: ["membership", "cancellation", "freeze", "retention"], highlighted: false }
+    ],
+    quickTips: [
+      "Listen empathetically to understand true reason",
+      "Offer freeze option before accepting cancellation",
+      "Check if eligible for refund per contract terms",
+      "Document retention attempts for future reference",
+      "Flag high-value customers for manager follow-up"
+    ],
+    requiredFields: ["Request type", "Reason", "Effective date", "Retention offer made"],
+    commonFollowUps: [
+      "Process request within contract terms (usually 30 days)",
+      "Send confirmation email with effective dates",
+      "If freeze: set reminder to contact before renewal",
+      "If cancel: add to win-back campaign after 60 days"
+    ],
+    priorityEscalationRules: {
+      highIf: [
+        "VIP or long-term member",
+        "Customer threatening social media complaint",
+        "High lifetime value customer"
+      ],
+      mediumIf: [
+        "Standard membership change request",
+        "Within contract terms"
+      ]
+    },
+    automationRules: {
+      autoAssignTo: "Client Success",
+      autoTag: ["retention", "membership"],
+      autoNotify: ["Sales Manager", "Client Success Lead"],
+      slaReminders: [18, 22]
+    }
+  },
+  {
+    id: "waitlist-issue",
+    name: "Waitlist/Class Full",
+    description: "Customer unable to get off waitlist or class always full",
+    icon: Users,
+    category: "Booking & Technology",
+    subcategory: "Class Booking",
+    priority: "medium",
+    slaHours: 12,
+    suggestedTitle: "Waitlist Issue - [Class Name] - [Customer]",
+    suggestedDescription: `Customer experiencing waitlist frustration.
+
+📅 CLASS DETAILS
+• Class name: [name]
+• Preferred day(s): [days]
+• Preferred time: [time]
+• Instructor preference: [instructor]
+• Studio location: [studio]
+
+👤 CUSTOMER CONTEXT
+• Customer name: [name]
+• Membership type: [type]
+• How long trying to book: [duration]
+• Frequency of waitlist attempts: [number]
+• Previous successful bookings: [yes/no]
+
+🎫 WAITLIST POSITION
+• Current waitlist position: [number]
+• Typical waitlist length for this class: [number]
+• Likelihood of getting in: [high/medium/low]
+• Pattern observed: [always full/specific days/specific times]
+
+😔 CUSTOMER SENTIMENT
+• Frustration level: [low/medium/high]
+• Considering canceling membership: [yes/no]
+• Open to alternative classes: [yes/no]
+• Willing to try different time/day: [yes/no]
+
+💡 SOLUTIONS OFFERED
+• Alternative class suggested: [which class]
+• Different time slot offered: [time]
+• Priority booking for next opening: [yes/no]
+• Added to notification list: [yes/no]`,
+    tags: ["waitlist", "booking", "capacity", "class-full"],
+    color: "from-yellow-500 to-orange-500",
+    formFields: [
+      { fieldName: "title", value: "Waitlist Issue - [Class Name] - [Customer]", highlighted: false },
+      { fieldName: "description", value: `Customer experiencing waitlist frustration.
+
+📅 CLASS DETAILS
+• Class name: [name]
+• Preferred day(s): [days]
+• Preferred time: [time]
+
+👤 CUSTOMER CONTEXT
+• Customer name: [name]
+• How long trying to book: [duration]
+
+😔 CUSTOMER SENTIMENT
+• Frustration level: [low/medium/high]
+• Open to alternative classes: [yes/no]
+
+💡 SOLUTIONS OFFERED
+• Alternative class suggested: [which class]
+• Different time slot offered: [time]`, highlighted: false },
+      { fieldName: "priority", value: "medium", highlighted: false },
+      { fieldName: "source", value: "email", highlighted: false },
+      { fieldName: "customerName", value: "[CUSTOMER NAME]", highlighted: true, placeholder: true },
+      { fieldName: "customerEmail", value: "[CUSTOMER EMAIL]", highlighted: true, placeholder: true },
+      { fieldName: "className", value: "[CLASS NAME]", highlighted: true, placeholder: true },
+      { fieldName: "tags", value: ["waitlist", "booking", "capacity", "class-full"], highlighted: false }
+    ],
+    quickTips: [
+      "Offer specific alternatives, not just 'try another class'",
+      "Check if this class consistently has waitlist issues",
+      "Consider adding another session if demand is high",
+      "Offer to notify when spot opens",
+      "Track waitlist complaints for capacity planning"
+    ],
+    requiredFields: ["Class name", "Preferred schedule", "Alternative offered"],
+    commonFollowUps: [
+      "Monitor this class for capacity expansion needs",
+      "Set up auto-notification when spot becomes available",
+      "Follow up if customer hasn't booked in 2 weeks",
+      "Share data with ops team for scheduling decisions"
+    ],
+    priorityEscalationRules: {
+      highIf: [
+        "Customer threatening to cancel membership",
+        "This is 3rd+ complaint about same class",
+        "VIP or long-term member"
+      ],
+      mediumIf: [
+        "Standard waitlist frustration",
+        "First-time complaint"
+      ]
+    },
+    automationRules: {
+      autoAssignTo: "Operations",
+      autoTag: ["waitlist", "capacity-planning"],
+      autoNotify: ["Operations Manager", "Scheduling Team"],
+      slaReminders: [8, 10]
+    }
   },
 ];
 
