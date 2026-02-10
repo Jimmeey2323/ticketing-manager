@@ -84,8 +84,8 @@ interface ClassSelectorProps {
 const formatClassLabel = (session: ClassSession): string => {
   const date = format(new Date(session.startsAt), "MMM d, yyyy");
   const time = format(new Date(session.startsAt), "h:mm a");
-  const teacherName = session.teacher 
-    ? `${session.teacher.firstName} ${session.teacher.lastName}`.trim() 
+  const teacherName = session.teacher?.firstName 
+    ? `${session.teacher.firstName} ${session.teacher.lastName || ''}`.trim() 
     : "No Teacher";
   
   return `${session.name} | ${date} | ${time} | ${teacherName}`;
@@ -123,11 +123,24 @@ export function ClassSelector({
       if (error) throw error;
       
       const validSessions = (data?.payload || [])
-        .filter((s: ClassSession) => !s.isCancelled && !s.isDraft)
-        .map((s: ClassSession) => ({
-          ...s,
-          displayLabel: formatClassLabel(s)
-        }));
+        .filter((s: any) => s && !s.isCancelled && !s.isDraft && s.startsAt)
+        .map((s: any) => {
+          // Safely extract teacher info handling nested/malformed data
+          const teacher = s.teacher && typeof s.teacher === 'object' && s.teacher.firstName
+            ? {
+                id: s.teacher.id,
+                firstName: s.teacher.firstName || '',
+                lastName: s.teacher.lastName || '',
+                pictureUrl: s.teacher.pictureUrl
+              }
+            : undefined;
+          
+          return {
+            ...s,
+            teacher,
+            displayLabel: formatClassLabel({ ...s, teacher })
+          } as ClassSession;
+        });
       
       setSessions(validSessions);
       setFilteredSessions(validSessions);
@@ -154,16 +167,37 @@ export function ClassSelector({
 
       if (error) throw error;
       
-      const bookingData = data?.payload || [];
+      const raw = Array.isArray(data?.payload) ? data.payload : [];
+      const bookingData: SessionBooking[] = raw
+        .filter(Boolean)
+        .map((b: any) => {
+          const customer = b?.customer && typeof b.customer === "object" ? b.customer : undefined;
+          return {
+            ...b,
+            customer: customer
+              ? {
+                  id: customer.id,
+                  firstName: customer.firstName || "",
+                  lastName: customer.lastName || "",
+                  email: customer.email,
+                  phoneNumber: customer.phoneNumber,
+                  pictureUrl: customer.pictureUrl,
+                }
+              : {
+                  id: 0,
+                  firstName: "Unknown",
+                  lastName: "",
+                },
+          } as SessionBooking;
+        });
+
       setBookings(bookingData);
       setShowAttendees(true);
-      
-      // Calculate metrics
-      const checkedInCount = bookingData.filter((b: SessionBooking) => b.checkedIn).length;
-      const cancelledCount = bookingData.filter((b: SessionBooking) => b.cancelledAt).length;
-      
+
+      const checkedInCount = bookingData.filter((b) => Boolean(b?.checkedIn)).length;
+      const cancelledCount = bookingData.filter((b) => Boolean(b?.cancelledAt)).length;
+
       return { bookings: bookingData, checkedInCount, cancelledCount };
-    } catch (error) {
       console.error("Error loading session bookings:", error);
       toast({
         title: "Failed to Load Bookings",
@@ -412,10 +446,10 @@ export function ClassSelector({
                           key={booking.id} 
                           className="flex items-center gap-3 p-2 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors"
                         >
-                          {booking.customer.pictureUrl ? (
+                          {booking.customer?.pictureUrl ? (
                             <img
                               src={booking.customer.pictureUrl}
-                              alt={`${booking.customer.firstName} ${booking.customer.lastName}`}
+                              alt={`${booking.customer?.firstName || "Attendee"} ${booking.customer?.lastName || ""}`.trim()}
                               className="h-8 w-8 rounded-full object-cover"
                             />
                           ) : (
@@ -425,9 +459,9 @@ export function ClassSelector({
                           )}
                           <div className="flex-1 min-w-0">
                             <p className="text-sm font-medium truncate">
-                              {booking.customer.firstName} {booking.customer.lastName}
+                              {(booking.customer?.firstName || "Unknown")} {booking.customer?.lastName || ""}
                             </p>
-                            {booking.customer.email && (
+                            {booking.customer?.email && (
                               <p className="text-xs text-muted-foreground truncate">{booking.customer.email}</p>
                             )}
                           </div>
