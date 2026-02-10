@@ -59,6 +59,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { useTheme } from "@/components/theme-provider";
@@ -92,16 +93,50 @@ interface SettingsState {
   };
 }
 
+// SettingsService - Handle persistence
+const createSettingsService = (userId: string) => {
+  const storageKey = `user-settings-${userId}`;
+
+  return {
+    loadSettings: (defaults: SettingsState): SettingsState => {
+      try {
+        const stored = localStorage.getItem(storageKey);
+        if (stored) {
+          return { ...defaults, ...JSON.parse(stored) };
+        }
+      } catch (err) {
+        console.error("Failed to load settings from localStorage:", err);
+      }
+      return defaults;
+    },
+
+    saveSettings: (settings: SettingsState): void => {
+      try {
+        localStorage.setItem(storageKey, JSON.stringify(settings));
+      } catch (err) {
+        console.error("Failed to save settings to localStorage:", err);
+      }
+    },
+
+    clearSettings: (): void => {
+      try {
+        localStorage.removeItem(storageKey);
+      } catch (err) {
+        console.error("Failed to clear settings:", err);
+      }
+    },
+  };
+};
+
 export default function Settings() {
   const { toast } = useToast();
   const { user } = useAuth();
   const { theme, setTheme } = useTheme();
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState("profile");
-  const [isSaving, setIsSaving] = useState(false);
-  
-  // Settings state
-  const [settings, setSettings] = useState<SettingsState>({
+
+  // Initialize default settings
+  const defaultSettings: SettingsState = {
     profile: {
       firstName: user?.firstName || "",
       lastName: user?.lastName || "",
@@ -126,7 +161,14 @@ export default function Settings() {
       twoFactorEnabled: false,
       sessionTimeout: 30,
     },
-  });
+  };
+
+  const settingsService = createSettingsService(user?.id || "default");
+  const [localSettings, setLocalSettings] = useState<SettingsState>(
+    settingsService.loadSettings(defaultSettings)
+  );
+  const [hasChanges, setHasChanges] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   // Custom entities state for CRUD
   const [customStudios, setCustomStudios] = useState(STUDIOS.map(s => ({ ...s, isCustom: false })));
@@ -138,15 +180,17 @@ export default function Settings() {
 
   const handleSave = async (section: string) => {
     setIsSaving(true);
-    
+
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 800));
-      
+      // Save to localStorage
+      settingsService.saveSettings(localSettings);
+
+      // Apply theme immediately if appearance section
       if (section === "appearance") {
-        setTheme(settings.appearance.theme);
+        setTheme(localSettings.appearance.theme);
       }
-      
+
+      setHasChanges(false);
       toast({
         title: "Settings saved",
         description: `Your ${section} preferences have been updated.`,
@@ -162,18 +206,28 @@ export default function Settings() {
     }
   };
 
+  const handleDiscard = () => {
+    setLocalSettings(settingsService.loadSettings(defaultSettings));
+    setHasChanges(false);
+    toast({
+      title: "Changes discarded",
+      description: "Your unsaved changes have been reverted.",
+    });
+  };
+
   const addStudio = () => {
     if (!newStudioName.trim()) return;
-    
+
     const newStudio = {
       id: `custom-${Date.now()}`,
       name: newStudioName.trim(),
       city: "Custom",
       isCustom: true,
     };
-    
+
     setCustomStudios(prev => [...prev, newStudio]);
     setNewStudioName("");
+    setHasChanges(true);
     toast({
       title: "Studio added",
       description: `${newStudio.name} has been added to the list.`,
@@ -182,6 +236,7 @@ export default function Settings() {
 
   const removeStudio = (id: string) => {
     setCustomStudios(prev => prev.filter(s => s.id !== id));
+    setHasChanges(true);
     toast({
       title: "Studio removed",
       description: "The studio has been removed from the list.",
@@ -190,7 +245,7 @@ export default function Settings() {
 
   const addCategory = () => {
     if (!newCategoryName.trim()) return;
-    
+
     const newCategory = {
       id: `custom-${Date.now()}`,
       code: newCategoryName.substring(0, 3).toUpperCase(),
@@ -201,9 +256,10 @@ export default function Settings() {
       subcategories: [],
       isCustom: true,
     };
-    
+
     setCustomCategories(prev => [...prev, newCategory]);
     setNewCategoryName("");
+    setHasChanges(true);
     toast({
       title: "Category added",
       description: `${newCategory.name} has been added to the list.`,
@@ -212,6 +268,7 @@ export default function Settings() {
 
   const removeCategory = (id: string) => {
     setCustomCategories(prev => prev.filter(c => c.id !== id));
+    setHasChanges(true);
     toast({
       title: "Category removed",
       description: "The category has been removed from the list.",
@@ -220,8 +277,46 @@ export default function Settings() {
 
   return (
     <div className="space-y-6 max-w-5xl mx-auto">
+      {/* Unsaved Changes Alert */}
+      <AnimatePresence>
+        {hasChanges && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+          >
+            <Alert className="border-amber-200 bg-amber-50 dark:border-amber-900 dark:bg-amber-950/20">
+              <AlertCircle className="h-4 w-4 text-amber-600" />
+              <AlertDescription className="text-amber-900 dark:text-amber-100">
+                You have unsaved changes.{" "}
+                <div className="flex gap-2 mt-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={handleDiscard}
+                    className="h-8"
+                  >
+                    <X className="h-3 w-3 mr-1" />
+                    Discard
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={() => handleSave("general")}
+                    disabled={isSaving}
+                    className="h-8"
+                  >
+                    {isSaving ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <Save className="h-3 w-3 mr-1" />}
+                    Save Changes
+                  </Button>
+                </div>
+              </AlertDescription>
+            </Alert>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Header */}
-      <motion.div 
+      <motion.div
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
         className="flex items-center gap-3"
@@ -283,11 +378,14 @@ export default function Settings() {
                   <Label htmlFor="firstName">First Name</Label>
                   <Input
                     id="firstName"
-                    value={settings.profile.firstName}
-                    onChange={(e) => setSettings(prev => ({
-                      ...prev,
-                      profile: { ...prev.profile, firstName: e.target.value }
-                    }))}
+                    value={localSettings.profile.firstName}
+                    onChange={(e) => {
+                      setLocalSettings(prev => ({
+                        ...prev,
+                        profile: { ...prev.profile, firstName: e.target.value }
+                      }));
+                      setHasChanges(true);
+                    }}
                     placeholder="Enter first name"
                     className="rounded-xl"
                   />
@@ -296,11 +394,14 @@ export default function Settings() {
                   <Label htmlFor="lastName">Last Name</Label>
                   <Input
                     id="lastName"
-                    value={settings.profile.lastName}
-                    onChange={(e) => setSettings(prev => ({
-                      ...prev,
-                      profile: { ...prev.profile, lastName: e.target.value }
-                    }))}
+                    value={localSettings.profile.lastName}
+                    onChange={(e) => {
+                      setLocalSettings(prev => ({
+                        ...prev,
+                        profile: { ...prev.profile, lastName: e.target.value }
+                      }));
+                      setHasChanges(true);
+                    }}
                     placeholder="Enter last name"
                     className="rounded-xl"
                   />
@@ -311,11 +412,14 @@ export default function Settings() {
                 <Input
                   id="email"
                   type="email"
-                  value={settings.profile.email}
-                  onChange={(e) => setSettings(prev => ({
-                    ...prev,
-                    profile: { ...prev.profile, email: e.target.value }
-                  }))}
+                  value={localSettings.profile.email}
+                  onChange={(e) => {
+                    setLocalSettings(prev => ({
+                      ...prev,
+                      profile: { ...prev.profile, email: e.target.value }
+                    }));
+                    setHasChanges(true);
+                  }}
                   placeholder="Enter email"
                   className="rounded-xl"
                 />
@@ -325,11 +429,14 @@ export default function Settings() {
                 <Input
                   id="phone"
                   type="tel"
-                  value={settings.profile.phone}
-                  onChange={(e) => setSettings(prev => ({
-                    ...prev,
-                    profile: { ...prev.profile, phone: e.target.value }
-                  }))}
+                  value={localSettings.profile.phone}
+                  onChange={(e) => {
+                    setLocalSettings(prev => ({
+                      ...prev,
+                      profile: { ...prev.profile, phone: e.target.value }
+                    }));
+                    setHasChanges(true);
+                  }}
                   placeholder="Enter phone number"
                   className="rounded-xl"
                 />
@@ -387,11 +494,14 @@ export default function Settings() {
                     <p className="text-sm text-muted-foreground">{item.description}</p>
                   </div>
                   <Switch
-                    checked={settings.notifications[item.key as keyof typeof settings.notifications]}
-                    onCheckedChange={(checked) => setSettings(prev => ({
-                      ...prev,
-                      notifications: { ...prev.notifications, [item.key]: checked }
-                    }))}
+                    checked={localSettings.notifications[item.key as keyof typeof localSettings.notifications]}
+                    onCheckedChange={(checked) => {
+                      setLocalSettings(prev => ({
+                        ...prev,
+                        notifications: { ...prev.notifications, [item.key]: checked }
+                      }));
+                      setHasChanges(true);
+                    }}
                   />
                 </motion.div>
               ))}
@@ -428,13 +538,16 @@ export default function Settings() {
                   ].map((option) => (
                     <button
                       key={option.value}
-                      onClick={() => setSettings(prev => ({
-                        ...prev,
-                        appearance: { ...prev.appearance, theme: option.value as "light" | "dark" | "system" }
-                      }))}
+                      onClick={() => {
+                        setLocalSettings(prev => ({
+                          ...prev,
+                          appearance: { ...prev.appearance, theme: option.value as "light" | "dark" | "system" }
+                        }));
+                        setHasChanges(true);
+                      }}
                       className={cn(
                         "flex flex-col items-center p-4 rounded-xl border-2 transition-all",
-                        settings.appearance.theme === option.value
+                        localSettings.appearance.theme === option.value
                           ? "border-primary bg-primary/10"
                           : "border-border hover:border-primary/30"
                       )}
@@ -451,11 +564,14 @@ export default function Settings() {
               <div className="space-y-3">
                 <Label>Language</Label>
                 <Select
-                  value={settings.appearance.language}
-                  onValueChange={(value) => setSettings(prev => ({
-                    ...prev,
-                    appearance: { ...prev.appearance, language: value }
-                  }))}
+                  value={localSettings.appearance.language}
+                  onValueChange={(value) => {
+                    setLocalSettings(prev => ({
+                      ...prev,
+                      appearance: { ...prev.appearance, language: value }
+                    }));
+                    setHasChanges(true);
+                  }}
                 >
                   <SelectTrigger className="w-full md:w-64 rounded-xl">
                     <SelectValue placeholder="Select language" />
@@ -477,11 +593,14 @@ export default function Settings() {
                     <p className="text-sm text-muted-foreground">Use a more compact interface layout</p>
                   </div>
                   <Switch
-                    checked={settings.appearance.compactMode}
-                    onCheckedChange={(checked) => setSettings(prev => ({
-                      ...prev,
-                      appearance: { ...prev.appearance, compactMode: checked }
-                    }))}
+                    checked={localSettings.appearance.compactMode}
+                    onCheckedChange={(checked) => {
+                      setLocalSettings(prev => ({
+                        ...prev,
+                        appearance: { ...prev.appearance, compactMode: checked }
+                      }));
+                      setHasChanges(true);
+                    }}
                   />
                 </div>
 
@@ -491,11 +610,14 @@ export default function Settings() {
                     <p className="text-sm text-muted-foreground">Enable smooth animations and transitions</p>
                   </div>
                   <Switch
-                    checked={settings.appearance.animationsEnabled}
-                    onCheckedChange={(checked) => setSettings(prev => ({
-                      ...prev,
-                      appearance: { ...prev.appearance, animationsEnabled: checked }
-                    }))}
+                    checked={localSettings.appearance.animationsEnabled}
+                    onCheckedChange={(checked) => {
+                      setLocalSettings(prev => ({
+                        ...prev,
+                        appearance: { ...prev.appearance, animationsEnabled: checked }
+                      }));
+                      setHasChanges(true);
+                    }}
                   />
                 </div>
               </div>
@@ -540,11 +662,14 @@ export default function Settings() {
               <div className="space-y-3">
                 <Label>Session Timeout</Label>
                 <Select
-                  value={settings.security.sessionTimeout.toString()}
-                  onValueChange={(value) => setSettings(prev => ({
-                    ...prev,
-                    security: { ...prev.security, sessionTimeout: parseInt(value) }
-                  }))}
+                  value={localSettings.security.sessionTimeout.toString()}
+                  onValueChange={(value) => {
+                    setLocalSettings(prev => ({
+                      ...prev,
+                      security: { ...prev.security, sessionTimeout: parseInt(value) }
+                    }));
+                    setHasChanges(true);
+                  }}
                 >
                   <SelectTrigger className="w-full md:w-64 rounded-xl">
                     <SelectValue placeholder="Select timeout" />
