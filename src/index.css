@@ -3,101 +3,57 @@
 @tailwind utilities;
 
 /* ============================================
-   PREMIUM DESIGN SYSTEM - Light Mode
-   Deep Indigo/Violet Professional Theme
+   GLASSMORPHIC PREMIUM DESIGN SYSTEM
+   White Background with Dark Accents
    ============================================ */
 :root {
-  /* Base UI tokens */
-  --button-outline: rgba(0,0,0, .08);
-  --badge-outline: rgba(0,0,0, .04);
-  --opaque-button-border-intensity: -8;
-  --elevate-1: rgba(0,0,0, .02);
-  --elevate-2: rgba(0,0,0, .06);
-  
-  /* Sophisticated pearl white backgrounds */
-  --background: 240 20% 98%;
-  --background-gradient-start: 240 30% 99%;
-  --background-gradient-end: 250 25% 96%;
-  --foreground: 240 25% 8%;
-  
-  /* Border system */
-  --border: 240 15% 88%;
-  
-  /* Card system - frosted glass */
+  /* Base - Pure White with Gradient Overlay */
+  --background: 0 0% 100%;
+  --foreground: 222 47% 11%;
+
+  /* Glass Card System */
   --card: 0 0% 100%;
-  --card-foreground: 240 25% 10%;
-  --card-border: 240 15% 90%;
-  
-  /* Sidebar - premium gradient */
-  --sidebar: 240 30% 99%;
-  --sidebar-foreground: 240 25% 20%;
-  --sidebar-border: 240 15% 88%;
-  --sidebar-primary: 217 95% 45%;
-  --sidebar-primary-foreground: 0 0% 100%;
-  --sidebar-accent: 217 95% 45%;
-  --sidebar-accent-foreground: 0 0% 100%;
-  --sidebar-ring: 217 95% 50%;
-  
+  --card-foreground: 222 47% 11%;
+
+  /* Borders - Subtle and refined */
+  --border: 220 13% 91%;
+  --input: 220 13% 91%;
+
+  /* Primary - Slate Dark */
+  --primary: 222 47% 11%;
+  --primary-foreground: 0 0% 100%;
+
+  /* Secondary - Indigo/Purple */
+  --secondary: 262 83% 58%;
+  --secondary-foreground: 0 0% 100%;
+
+  /* Muted */
+  --muted: 220 13% 91%;
+  --muted-foreground: 220 9% 46%;
+
+  /* Accent - Purple Gradient */
+  --accent: 262 83% 58%;
+  --accent-foreground: 0 0% 100%;
+
+  /* Destructive */
+  --destructive: 0 84% 60%;
+  --destructive-foreground: 0 0% 100%;
+
   /* Popover */
   --popover: 0 0% 100%;
-  --popover-foreground: 240 25% 10%;
-  --popover-border: 240 15% 90%;
-  
-  /* Primary - Deep Dark Blue */
-  --primary: 217 95% 45%;
-  --primary-foreground: 0 0% 100%;
-  --primary-glow: 217 100% 52%;
-  
-  /* Secondary - Rich Navy Blue */
-  --secondary: 220 90% 38%;
-  --secondary-foreground: 0 0% 100%;
-  
-  /* Muted */
-  --muted: 240 15% 92%;
-  --muted-foreground: 240 10% 45%;
-  
-  /* Accent - Vivid Blue */
-  --accent: 217 95% 45%;
-  --accent-foreground: 0 0% 100%;
-  
-  /* Destructive */
-  --destructive: 0 85% 60%;
-  --destructive-foreground: 0 0% 100%;
-  
-  /* Input */
-  --input: 240 15% 90%;
-  --ring: 217 95% 45%;
-  
-  /* Chart colors - sophisticated palette */
-  --chart-1: 217 95% 45%;
-  --chart-2: 160 75% 42%;
-  --chart-3: 38 95% 55%;
-  --chart-4: 220 90% 38%;
-  --chart-5: 200 80% 50%;
-  
-  /* Status colors */
-  --status-new: 217 95% 45%;
-  --status-assigned: 220 90% 38%;
-  --status-in-progress: 38 95% 50%;
-  --status-pending: 25 100% 50%;
-  --status-resolved: 160 70% 40%;
-  --status-closed: 240 10% 55%;
-  --status-reopened: 0 80% 55%;
-  
-  /* Typography */
-  --font-sans: 'Plus Jakarta Sans', 'Inter', system-ui, sans-serif;
-  --font-display: 'Plus Jakarta Sans', 'Inter', system-ui, sans-serif;
-  --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
-  
-  /* Spacing & Radius */
+  --popover-foreground: 222 47% 11%;
+
+  /* Radius */
   --radius: 1rem;
-  
-  /* Premium shadows */
-  --shadow-2xs: 0 1px 2px rgba(0,0,0,0.03);
-  --shadow-xs: 0 1px 3px rgba(0,0,0,0.05);
-  --shadow-sm: 0 2px 8px rgba(0,0,0,0.05), 0 1px 2px rgba(0,0,0,0.03);
-  --shadow: 0 4px 16px rgba(0,0,0,0.06), 0 2px 4px rgba(0,0,0,0.04);
-  --shadow-md: 0 8px 24px rgba(0,0,0,0.08), 0 4px 8px rgba(0,0,0,0.05);
+
+  /* Ring */
+  --ring: 262 83% 58%;
+
+  /* Glassmorphic shadows */
+  --glass-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.1);
+  --glass-shadow-lg: 0 12px 48px 0 rgba(31, 38, 135, 0.15);
+  --glass-shadow-xl: 0 20px 64px 0 rgba(31, 38, 135, 0.2);
+}
   --shadow-lg: 0 16px 48px rgba(0,0,0,0.10), 0 8px 16px rgba(0,0,0,0.06);
   --shadow-xl: 0 24px 64px rgba(0,0,0,0.12), 0 12px 24px rgba(0,0,0,0.08);
   --shadow-2xl: 0 32px 96px rgba(0,0,0,0.16);
