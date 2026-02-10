@@ -17,7 +17,7 @@ const NotFound = lazy(() => import("@/pages/not-found"));
 const Landing = lazy(() => import("@/pages/landing"));
 const Dashboard = lazy(() => import("@/pages/dashboard"));
 const Tickets = lazy(() => import("@/pages/tickets"));
-const NewTicket = lazy(() => import("@/pages/ticket-new"));
+const NewTicket = lazy(() => import("@/pages/ticket-new-premium"));
 const TicketDetail = lazy(() => import("@/pages/ticket-detail"));
 const Analytics = lazy(() => import("@/pages/analytics"));
 const Teams = lazy(() => import("@/pages/teams"));
