@@ -1646,182 +1646,207 @@ export const TICKET_TEMPLATES: TicketTemplate[] = [
   },
   {
     id: "trainer-feedback",
-    name: "Trainer Feedback/Observation",
-    description: "Log trainer-related feedback, observations, or concerns about class delivery, professionalism, or protocol compliance",
+    name: "Trainer Performance Review",
+    description: "Comprehensive trainer performance review including metrics, feedback, and development plans",
     icon: Users,
     category: "Customer Service",
     subcategory: "Staff Professionalism",
     priority: "medium",
     slaHours: 48,
-    suggestedTitle: "Trainer Feedback - [Trainer Name] - [Category] - [Date]",
-    suggestedDescription: `👤 TRAINER FEEDBACK/OBSERVATION REPORT
+    suggestedTitle: "Performance Review - [Trainer Name] - [Review Period]",
+    suggestedDescription: `👤 TRAINER PERFORMANCE REVIEW
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-📅 IDENTIFICATION
+📅 REVIEW INFORMATION
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-• Feedback Logged Date & Time: [REQUIRED]
-• Location: [REQUIRED - Studio]
-• Logged By: [REQUIRED - Staff member]
-• Trainer Name: [REQUIRED - Trainer being referenced]
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-📋 CORE INFORMATION
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-• Class Type: [REQUIRED - Class during observation]
-
-• Feedback Category: [REQUIRED]
-  ○ Class Delivery
-  ○ Client Interaction
-  ○ Professional Conduct
-  ○ Punctuality
-  ○ Safety/Form Correction
-  ○ Protocol Compliance
-  ○ Other
-
-• Specific Observation: [REQUIRED]
-[Factual description of what was observed - no opinions]
+• Review Period: [Month/Quarter/Year - REQUIRED]
+• Review Date: [Date - REQUIRED]
+• Reviewer Name: [Manager/Supervisor - REQUIRED]
+• Trainer Name: [Full Name - REQUIRED]
+• Primary Studio Location: [Studio - REQUIRED]
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-📈 IMPACT ASSESSMENT
+📊 PERFORMANCE METRICS
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-• Client(s) Impacted: [Client names if applicable]
-
-• Client Impact Level: [REQUIRED]
-  ○ No impact
-  ○ Minor dissatisfaction
-  ○ Class disruption
-  ○ Safety concern
-
-• Was This a Repeat Issue?:
-  ○ Yes
-  ○ No
-  ○ Unsure
-
-• Immediate Action Taken:
-[Any real-time correction or intervention done]
-
-• Priority Level: [REQUIRED]
-  ○ Low (log only)
-  ○ Medium (48hrs)
-  ○ High (24hrs)
-  ○ Critical (immediate)
+• Total Classes Taught: [Number]
+• Average Class Attendance: [Number]
+• Attendance Growth %: [Percentage vs previous period]
+• Average Conversion Rate: [Percentage of trials converted]
+• Total Empty Classes: [Number]
+• Class Assignment Fulfillment: [Number of assigned vs. taken]
+• Workshops/Special Classes Led: [Number]
+• Meeting Attendance: [Number attended / Total]
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-🔀 ROUTING
+💬 CLIENT FEEDBACK SUMMARY
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-• Department to Notify: [REQUIRED]
-  ○ Training
-  ○ Operations
-  ○ Client Success
-  ○ Management
+• Overall Client Sentiment: [Positive/Neutral/Needs Improvement]
+• Key Strengths from Client Feedback:
+[What clients consistently praise - be specific]
 
-• Follow-Up Required: [REQUIRED]
-  ○ Yes
-  ○ No
+• Areas for Improvement from Client Feedback:
+[What clients suggest could be better - be specific]
 
-• Follow-Up Deadline: [Target date for review]
+• Notable Client Comments:
+[Direct quotes or specific feedback examples]
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-📝 CLOSURE (For Manager Use)
+🎯 INTERNAL FEEDBACK & ASSESSMENT
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-• Manager Review Notes:
-[Notes added during review or closure]`,
-    tags: ["trainer", "feedback", "performance", "coaching", "quality"],
-    color: "from-blue-500 to-indigo-600",
+• Class Delivery & Choreography: [1-5 rating]
+[Commentary on sequencing, creativity, flow, modifications]
+
+• Client Connection & Engagement: [1-5 rating]
+[Commentary on motivation, energy, empathy, room presence]
+
+• Technical Knowledge & Cueing: [1-5 rating]
+[Commentary on form corrections, anatomical understanding, clear instructions]
+
+• Professionalism & Reliability: [1-5 rating]
+[Commentary on punctuality, communication, etiquette, policies]
+
+• Command & Leadership: [1-5 rating]
+[Commentary on room control, confidence, handling difficult situations]
+
+• Self-Development & Growth: [1-5 rating]
+[Commentary on learning initiatives, certifications, feedback receptiveness]
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+⭐ ACHIEVEMENTS & HIGHLIGHTS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+• Certifications Completed: [List with dates]
+• New Skills/Levels Achieved: [What expanded]
+• Notable Accomplishments: [Special recognition, milestones]
+• Batches Built from Scratch: [New classes launched]
+• Additional Responsibilities: [TA roles, training, special projects]
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🎓 DEVELOPMENT FOCUS POINTS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Priority Area 1: [Specific skill/area - REQUIRED]
+Action Items:
+• [Concrete step 1]
+• [Concrete step 2]
+• [Concrete step 3]
+
+Priority Area 2: [Specific skill/area]
+Action Items:
+• [Concrete step 1]
+• [Concrete step 2]
+
+Priority Area 3: [Specific skill/area]
+Action Items:
+• [Concrete step 1]
+• [Concrete step 2]
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🎯 GOALS FOR NEXT PERIOD
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Professional Development Goals:
+• [Goal 1 with target date]
+• [Goal 2 with target date]
+• [Goal 3 with target date]
+
+Performance Goals:
+• [Metric-based goal 1]
+• [Metric-based goal 2]
+
+Certification/Training Goals:
+• [Specific certification with deadline]
+• [Workshop/training planned]
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📝 ADDITIONAL NOTES
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+• Trainer's Self-Assessment Comments: [Optional]
+• Trainer's Goals/Requests: [Optional]
+• Manager's Additional Observations: [Any context needed]
+• Follow-Up Meeting Date: [Schedule 1:1 discussion]
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+✍️ SIGNATURES
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+• Reviewed with Trainer: [Yes/No - REQUIRED]
+• Trainer Acknowledgment: [Date signed]
+• Manager Signature: [Date signed]
+• Next Review Date: [Scheduled date - REQUIRED]`,
+    tags: ["trainer", "performance-review", "feedback", "development", "assessment"],
+    color: "from-indigo-500 to-purple-600",
     formFields: [
-      { fieldName: "title", value: "Trainer Feedback - [Trainer Name] - [Category] - [Date]", highlighted: false },
-      { fieldName: "description", value: `👤 TRAINER FEEDBACK/OBSERVATION REPORT
+      { fieldName: "title", value: "Performance Review - [Trainer Name] - [Review Period]", highlighted: false },
+      { fieldName: "description", value: `Comprehensive trainer performance review.
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-📅 IDENTIFICATION
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-• Feedback Logged Date & Time: [REQUIRED]
-• Location: [REQUIRED - Studio]
-• Logged By: [REQUIRED - Staff member]
-• Trainer Name: [REQUIRED - Trainer being referenced]
+REVIEW INFORMATION
+• Review Period: [Month/Quarter/Year]
+• Trainer Name: [Full Name]
+• Primary Studio: [Studio]
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-📋 CORE INFORMATION
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-• Class Type: [REQUIRED - Class during observation]
+PERFORMANCE METRICS
+• Total Classes Taught: [Number]
+• Avg Attendance: [Number]
+• Attendance Growth %: [Percentage]
+• Conversion Rate: [Percentage]
 
-• Feedback Category: [REQUIRED]
-  ○ Class Delivery
-  ○ Client Interaction
-  ○ Professional Conduct
-  ○ Punctuality
-  ○ Safety/Form Correction
-  ○ Protocol Compliance
-  ○ Other
+CLIENT FEEDBACK SUMMARY
+• Overall Sentiment: [Positive/Neutral/Needs Improvement]
+• Key Strengths: [Details]
+• Areas for Improvement: [Details]
 
-• Specific Observation: [REQUIRED]
-[Factual description of what was observed - no opinions]
+DEVELOPMENT FOCUS POINTS
+• Priority Area 1: [Specific skill/area]
+• Priority Area 2: [Specific skill/area]
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-📈 IMPACT ASSESSMENT
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-• Client(s) Impacted: [Client names if applicable]
-
-• Client Impact Level: [REQUIRED]
-  ○ No impact
-  ○ Minor dissatisfaction
-  ○ Class disruption
-  ○ Safety concern
-
-• Was This a Repeat Issue?:
-  ○ Yes
-  ○ No
-  ○ Unsure
-
-• Immediate Action Taken:
-[Any real-time correction or intervention done]
-
-• Priority Level: [REQUIRED]
-  ○ Low (log only)
-  ○ Medium (48hrs)
-  ○ High (24hrs)
-  ○ Critical (immediate)
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-🔀 ROUTING
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-• Department to Notify: [REQUIRED]
-  ○ Training
-  ○ Operations
-  ○ Client Success
-  ○ Management
-
-• Follow-Up Required: [REQUIRED]
-  ○ Yes
-  ○ No
-
-• Follow-Up Deadline: [Target date for review]
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-📝 CLOSURE (For Manager Use)
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-• Manager Review Notes:
-[Notes added during review or closure]`, highlighted: false },
+GOALS FOR NEXT PERIOD
+• Professional Development: [Goals]
+• Performance Targets: [Metrics]
+• Certifications: [Plans]`, highlighted: false },
       { fieldName: "priority", value: "medium", highlighted: false },
       { fieldName: "source", value: "in-person", highlighted: false },
       { fieldName: "trainerName", value: "[TRAINER NAME]", highlighted: true, placeholder: true },
-      { fieldName: "className", value: "[CLASS TYPE]", highlighted: true, placeholder: true },
-      { fieldName: "classDateTime", value: "", highlighted: true, placeholder: true },
-      { fieldName: "tags", value: ["trainer", "feedback", "performance", "coaching", "quality"], highlighted: false }
+      { fieldName: "reviewPeriod", value: "[REVIEW PERIOD]", highlighted: true, placeholder: true, label: "Review Period" },
+      { fieldName: "className", value: "[PRIMARY CLASS TYPE]", highlighted: true, placeholder: true },
+      { fieldName: "tags", value: ["trainer", "performance-review", "feedback", "development", "assessment"], highlighted: false }
     ],
     quickTips: [
-      "Document observations objectively without judgment",
-      "If safety concern, address with trainer immediately",
-      "Use positive feedback for recognition and morale",
-      "Track patterns for training and development planning"
+      "Use specific metrics and examples - avoid generic feedback",
+      "Balance positive recognition with constructive development areas",
+      "Set SMART goals (Specific, Measurable, Achievable, Relevant, Time-bound)",
+      "Document achievements for recognition and career progression",
+      "Schedule follow-up 1:1 within 48 hours of review",
+      "Bulk upload option: Upload Excel/CSV files for automatic processing"
     ],
-    requiredFields: ["Trainer Name", "Class Type", "Feedback Category", "Specific Observation", "Client Impact Level"],
+    requiredFields: ["Trainer Name", "Review Period", "Performance Metrics", "Client Feedback Summary", "Development Focus Points", "Goals"],
     commonFollowUps: [
-      "Schedule one-on-one feedback session with trainer",
-      "If positive: recognize in team meeting or formally",
-      "If concern: create development plan with Training team",
-      "Follow up with affected client if service was impacted"
-    ]
+      "Schedule one-on-one feedback session with trainer within 48h",
+      "If positive: recognize in team meeting or send formal recognition",
+      "If development areas: create action plan with Training team",
+      "Track progress on goals monthly",
+      "Upload to trainer's personnel file",
+      "Share relevant feedback with scheduling team for class assignments"
+    ],
+    priorityEscalationRules: {
+      highIf: [
+        "Performance significantly below standards",
+        "Safety or professionalism concerns",
+        "Client complaints pattern identified",
+        "Trainer requesting immediate support"
+      ],
+      mediumIf: [
+        "Regular periodic review",
+        "Minor development areas identified",
+        "Standard performance tracking"
+      ],
+      lowIf: [
+        "Exceptional performance recognition",
+        "Milestone celebration (anniversary, certification)"
+      ]
+    },
+    automationRules: {
+      autoAssignTo: "Training & Development",
+      autoTag: ["performance", "review", "trainer-development"],
+      autoNotify: ["Training Manager", "Operations Manager", "Trainer"],
+      slaReminders: [24, 36]
+    }
   },
   {
     id: "membership-freeze-cancel",

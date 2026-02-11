@@ -27,6 +27,7 @@ const Categories = lazy(() => import("@/pages/categories"));
 const Notifications = lazy(() => import("@/pages/notifications"));
 const Settings = lazy(() => import("@/pages/settings"));
 const Templates = lazy(() => import("@/pages/templates"));
+const BulkUpload = lazy(() => import("@/pages/bulk-upload"));
 
 // Loading fallback component
 function PageLoader() {
@@ -47,6 +48,7 @@ function AuthenticatedRoutes() {
         <Route path="/tickets/:id" component={TicketDetail} />
         <Route path="/analytics" component={Analytics} />
         <Route path="/templates" component={Templates} />
+        <Route path="/bulk-upload" component={BulkUpload} />
         <Route path="/teams" component={Teams} />
         <Route path="/studios" component={Studios} />
         <Route path="/categories" component={Categories} />

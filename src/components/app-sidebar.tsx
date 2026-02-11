@@ -12,6 +12,7 @@ import {
   Sparkles,
   FileText,
   Star,
+  Upload,
 } from "lucide-react";
 import {
   Sidebar,
@@ -36,6 +37,7 @@ const mainNavItems = [
   { title: "All Tickets", url: "/tickets", icon: Ticket },
   { title: "New Ticket", url: "/tickets/new", icon: Plus },
   { title: "Templates", url: "/templates", icon: FileText },
+  { title: "Bulk Upload", url: "/bulk-upload", icon: Upload },
   { title: "Analytics", url: "/analytics", icon: BarChart3 },
 ];
 
